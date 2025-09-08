@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+
+{% block title %}Driver Dashboard - Waka-Fine Bus{% endblock %}
+
+{% block extra_head %}
+<style>
+    .gps-status {
+        transition: all 0.3s ease;
+    }
+    .gps-enabled {
+        background: linear-gradient(135deg, #10b981, #059669);
+    }
+    .gps-disabled {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+    .pulse-ring {
+        animation: pulse-ring 1.25s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+    }
+    @keyframes pulse-ring {
+        0% {
+            transform: scale(.33);
+        }
+        80%, 100% {
+            transform: scale(1.33);
+            opacity: 0;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">
+                <i class="fas fa-tachometer-alt text-blue-600 mr-3"></i>
+                Driver Dashboard
+            </h1>
+            <p class="text-gray-600 mt-2">Welcome, {{ request.user.get_full_name }}!</p>
+        </div>
+        <div class="text-right">
+            <div class="text-sm text-gray-500">Current Time</div>
+            <div class="text-lg font-semibold text-gray-800" id="currentTime"></div>
+        </div>
+    </div>
+
+    <!-- GPS Status Card -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <div class="gps-status w-16 h-16 rounded-full flex items-center justify-center mr-4" id="gpsStatusIndicator">
+                    <div class="absolute w-16 h-16 bg-white rounded-full opacity-25 pulse-ring"></div>
+                    <i class="fas fa-satellite-dish text-2xl text-white relative z-10"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800">GPS Tracking Status</h2>
+                    <p class="text-gray-600" id="gpsStatusText">Checking GPS connection...</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <button onclick="toggleGPS()" id="gpsToggleBtn" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-power-off mr-2"></i>
+                    Enable GPS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Assignment -->
+    {% if bus %}
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Current Assignment</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                    <i class="fas fa-bus text-blue-600 text-xl"></i>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Assigned Bus</div>
+                    <div class="font-semibold text-gray-800">{{ bus.bus_name }}</div>
+                    <div class="text-sm text-gray-600">{{ bus.bus_number }}</div>
+                </div>
+            </div>
+            
+            {% if bus.assigned_route %}
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                    <i class="fas fa-route text-green-600 text-xl"></i>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Route</div>
+                    <div class="font-semibold text-gray-800">{{ bus.assigned_route.origin }}</div>
+                    <div class="text-sm text-gray-600">to {{ bus.assigned_route.destination }}</div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                    <i class="fas fa-users text-purple-600 text-xl"></i>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500">Capacity</div>
+                    <div class="font-semibold text-gray-800">{{ bus.seat_capacity }} seats</div>
+                    <div class="text-sm text-gray-600">{{ bus.available_seats }} available</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Tracking Panel -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Speed & Location -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Current Status</h3>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-tachometer-alt text-blue-600 mr-3"></i>
+                        <span class="text-gray-700">Current Speed</span>
+                    </div>
+                    <span class="text-2xl font-bold text-blue-600" id="currentSpeed">0 km/h</span>
+                </div>
+                
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-map-marker-alt text-green-600 mr-3"></i>
+                        <span class="text-gray-700">GPS Accuracy</span>
+                    </div>
+                    <span class="text-lg font-semibold text-green-600" id="gpsAccuracy">-- meters</span>
+                </div>
+                
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <i class="fas fa-compass text-purple-600 mr-3"></i>
+                        <span class="text-gray-700">Direction</span>
+                    </div>
+                    <span class="text-lg font-semibold text-purple-600" id="direction">--°</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emergency Controls -->
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Emergency Controls</h3>
+            <div class="space-y-4">
+                <button onclick="triggerEmergency('panic')" class="w-full bg-red-600 text-white p-4 rounded-lg hover:bg-red-700 transition-colors">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    PANIC BUTTON
+                </button>
+                
+                <button onclick="triggerEmergency('breakdown')" class="w-full bg-orange-600 text-white p-3 rounded-lg hover:bg-orange-700 transition-colors">
+                    <i class="fas fa-wrench mr-2"></i>
+                    Vehicle Breakdown
+                </button>
+                
+                <button onclick="triggerEmergency('medical')" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-heartbeat mr-2"></i>
+                    Medical Emergency
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Route Progress -->
+    {% if current_progress %}
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Route Progress</h3>
+        <div class="space-y-4">
+            <div class="flex items-center justify-between">
+                <span class="text-gray-700">{{ current_progress.route.origin }}</span>
+                <span class="text-gray-700">{{ current_progress.route.destination }}</span>
+            </div>
+            
+            <div class="w-full bg-gray-200 rounded-full h-3">
+                <div class="bg-blue-600 h-3 rounded-full transition-all duration-500" 
+                     style="width: {{ current_progress.progress_percentage }}%"></div>
+            </div>
+            
+            <div class="flex items-center justify-between text-sm text-gray-600">
+                <span>{{ current_progress.progress_percentage|floatformat:1 }}% Complete</span>
+                <span>{{ current_progress.distance_covered|floatformat:1 }}/{{ current_progress.total_distance|floatformat:1 }} km</span>
+            </div>
+            
+            {% if current_progress.estimated_arrival_time %}
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-gray-600">Estimated Arrival:</span>
+                <span class="font-semibold text-gray-800">{{ current_progress.estimated_arrival_time|date:'H:i' }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Alerts -->
+    {% if recent_alerts %}
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">Recent Alerts</h3>
+        <div class="space-y-3">
+            {% for alert in recent_alerts %}
+            <div class="flex items-center justify-between p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle text-yellow-600 mr-3"></i>
+                    <div>
+                        <div class="text-sm font-medium text-yellow-800">{{ alert.get_alert_type_display }}</div>
+                        <div class="text-xs text-yellow-600">{{ alert.created_at|timesince }} ago</div>
+                    </div>
+                </div>
+                <span class="text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">
+                    {{ alert.severity|title }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <!-- No Assignment -->
+    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
+        <i class="fas fa-info-circle text-4xl text-yellow-600 mb-4"></i>
+        <h2 class="text-xl font-semibold text-yellow-800 mb-2">No Bus Assignment</h2>
+        <p class="text-yellow-700">You are not currently assigned to any bus. Please contact your supervisor.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Emergency Confirmation Modal -->
+<div id="emergencyModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 max-w-md mx-4 w-full">
+        <div class="text-center">
+            <i class="fas fa-exclamation-triangle text-4xl text-red-600 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-800 mb-2">Emergency Alert</h3>
+            <p class="text-gray-600 mb-6" id="emergencyMessage">Are you sure you want to trigger this emergency alert?</p>
+            
+            <div class="space-y-2 mb-6">
+                <textarea id="emergencyDescription" 
+                         class="w-full p-3 border border-gray-300 rounded-lg" 
+                         placeholder="Describe the emergency (optional)..." 
+                         rows="3"></textarea>
+            </div>
+            
+            <div class="flex space-x-3">
+                <button onclick="closeEmergencyModal()" class="flex-1 bg-gray-300 text-gray-700 p-3 rounded-lg hover:bg-gray-400 transition-colors">
+                    Cancel
+                </button>
+                <button onclick="confirmEmergency()" id="confirmEmergencyBtn" class="flex-1 bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition-colors">
+                    Confirm Emergency
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let gpsEnabled = false;
+let currentEmergencyType = null;
+let watchId = null;
+
+// Update current time
+function updateTime() {
+    const now = new Date();
+    document.getElementById('currentTime').textContent = now.toLocaleTimeString();
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateTime();
+    setInterval(updateTime, 1000);
+    checkGPSStatus();
+});
+
+// GPS Functions
+function toggleGPS() {
+    if (gpsEnabled) {
+        disableGPS();
+    } else {
+        enableGPS();
+    }
+}
+
+function enableGPS() {
+    if (!navigator.geolocation) {
+        alert('GPS is not supported by this browser.');
+        return;
+    }
+    
+    const options = {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
+    };
+    
+    watchId = navigator.geolocation.watchPosition(
+        updateLocation,
+        handleGPSError,
+        options
+    );
+    
+    gpsEnabled = true;
+    updateGPSStatus();
+}
+
+function disableGPS() {
+    if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+    }
+    
+    gpsEnabled = false;
+    updateGPSStatus();
+    
+    // Clear current status
+    document.getElementById('currentSpeed').textContent = '0 km/h';
+    document.getElementById('gpsAccuracy').textContent = '-- meters';
+    document.getElementById('direction').textContent = '--°';
+}
+
+function updateLocation(position) {
+    const coords = position.coords;
+    
+    // Update display
+    document.getElementById('gpsAccuracy').textContent = `${coords.accuracy.toFixed(0)} meters`;
+    
+    if (coords.heading !== null) {
+        document.getElementById('direction').textContent = `${coords.heading.toFixed(0)}°`;
+    }
+    
+    if (coords.speed !== null) {
+        const speedKmh = (coords.speed * 3.6).toFixed(1);
+        document.getElementById('currentSpeed').textContent = `${speedKmh} km/h`;
+    }
+    
+    // Send to server
+    sendLocationUpdate(coords);
+}
+
+function handleGPSError(error) {
+    console.error('GPS Error:', error);
+    let message;
+    
+    switch(error.code) {
+        case error.PERMISSION_DENIED:
+            message = "GPS access denied. Please enable location services.";
+            break;
+        case error.POSITION_UNAVAILABLE:
+            message = "GPS position unavailable.";
+            break;
+        case error.TIMEOUT:
+            message = "GPS request timed out.";
+            break;
+        default:
+            message = "Unknown GPS error.";
+            break;
+    }
+    
+    document.getElementById('gpsStatusText').textContent = message;
+}
+
+function sendLocationUpdate(coords) {
+    const data = {
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        speed: coords.speed ? coords.speed * 3.6 : 0, // Convert m/s to km/h
+        heading: coords.heading,
+        accuracy: coords.accuracy,
+        device_id: 'driver_app_' + Date.now()
+    };
+    
+    {% if bus %}
+    fetch('{% url "gps_tracking:api_update_location" bus.pk %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Location updated successfully');
+        } else {
+            console.error('Location update failed:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error sending location:', error);
+    });
+    {% endif %}
+}
+
+function updateGPSStatus() {
+    const indicator = document.getElementById('gpsStatusIndicator');
+    const statusText = document.getElementById('gpsStatusText');
+    const toggleBtn = document.getElementById('gpsToggleBtn');
+    
+    if (gpsEnabled) {
+        indicator.className = 'gps-status gps-enabled w-16 h-16 rounded-full flex items-center justify-center mr-4';
+        statusText.textContent = 'GPS tracking is active';
+        toggleBtn.innerHTML = '<i class="fas fa-power-off mr-2"></i> Disable GPS';
+        toggleBtn.className = 'bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors';
+    } else {
+        indicator.className = 'gps-status gps-disabled w-16 h-16 rounded-full flex items-center justify-center mr-4';
+        statusText.textContent = 'GPS tracking is disabled';
+        toggleBtn.innerHTML = '<i class="fas fa-power-off mr-2"></i> Enable GPS';
+        toggleBtn.className = 'bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors';
+    }
+}
+
+function checkGPSStatus() {
+    // Check if GPS is supported and get permission status
+    if ('geolocation' in navigator) {
+        updateGPSStatus();
+    } else {
+        document.getElementById('gpsStatusText').textContent = 'GPS not supported by this browser';
+    }
+}
+
+// Emergency Functions
+function triggerEmergency(type) {
+    currentEmergencyType = type;
+    
+    const messages = {
+        'panic': 'This will send an immediate panic alert to all administrators. Use only in real emergencies.',
+        'breakdown': 'This will alert administrators about a vehicle breakdown requiring assistance.',
+        'medical': 'This will alert administrators about a medical emergency requiring immediate attention.'
+    };
+    
+    document.getElementById('emergencyMessage').textContent = messages[type];
+    document.getElementById('emergencyModal').classList.remove('hidden');
+    document.getElementById('emergencyModal').classList.add('flex');
+    document.getElementById('emergencyDescription').focus();
+}
+
+function closeEmergencyModal() {
+    document.getElementById('emergencyModal').classList.add('hidden');
+    document.getElementById('emergencyModal').classList.remove('flex');
+    document.getElementById('emergencyDescription').value = '';
+    currentEmergencyType = null;
+}
+
+function confirmEmergency() {
+    if (!currentEmergencyType) return;
+    
+    const description = document.getElementById('emergencyDescription').value;
+    const confirmBtn = document.getElementById('confirmEmergencyBtn');
+    
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Sending...';
+    
+    const data = {
+        alert_type: currentEmergencyType,
+        description: description,
+        priority: currentEmergencyType === 'panic' ? 'critical' : 'high'
+    };
+    
+    {% if bus %}
+    fetch('{% url "gps_tracking:api_emergency_alert" bus.pk %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Emergency alert sent successfully!');
+            closeEmergencyModal();
+        } else {
+            alert('Failed to send emergency alert: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error sending emergency alert:', error);
+        alert('Failed to send emergency alert. Please try again.');
+    })
+    .finally(() => {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Confirm Emergency';
+    });
+    {% endif %}
+}
+
+// Close modal when clicking outside
+document.getElementById('emergencyModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeEmergencyModal();
+    }
+});
+</script>
+{% endblock %}

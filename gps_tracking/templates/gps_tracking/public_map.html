@@ -1,0 +1,429 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}GPS Tracking - Live Bus Locations{% endblock %}
+
+{% block extra_css %}
+<style>
+    #map {
+        width: 100%;
+        height: 70vh;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .info-panel {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .bus-marker {
+        background: #3B82F6;
+        color: white;
+        border: 2px solid white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Live Bus Tracking</h1>
+        <p class="text-gray-600">Real-time locations of all active buses</p>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-panel">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="text-center">
+                <div class="text-2xl font-bold text-blue-600">{{ active_buses.count }}</div>
+                <div class="text-sm text-gray-600">Active Buses</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-green-600" id="online-count">0</div>
+                <div class="text-sm text-gray-600">Online Now</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-orange-600" id="last-updated">--</div>
+                <div class="text-sm text-gray-600">Last Updated</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div class="bg-white rounded-lg shadow-lg p-4">
+        <div id="map"></div>
+    </div>
+
+    <!-- Bus List -->
+    <div class="mt-6 bg-white rounded-lg shadow-lg p-4">
+        <h3 class="text-lg font-semibold mb-4">Active Buses</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="bus-list">
+            {% for bus in active_buses %}
+            <div class="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer" onclick="focusBus({{ bus.id }})">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h4 class="font-semibold">{{ bus.bus_number }}</h4>
+                        <p class="text-sm text-gray-600">{{ bus.assigned_route.name|default:"No Route Assigned" }}</p>
+                        <p class="text-xs text-gray-500 mt-1" id="bus-status-{{ bus.id }}">Checking...</p>
+                    </div>
+                    <div class="w-3 h-3 rounded-full bg-gray-400" id="bus-indicator-{{ bus.id }}"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Google Maps Script -->
+<script>
+let map;
+let markers = {};
+let infoWindows = {};
+let updateInterval;
+
+function initMap() {
+    // Initialize map centered on Freetown, Sierra Leone
+    map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 12,
+        center: { lat: 8.4840, lng: -13.2299 }, // Freetown coordinates
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        styles: [
+            {
+                featureType: "poi",
+                elementType: "labels",
+                stylers: [{ visibility: "off" }]
+            }
+        ]
+    });
+
+    // Load initial bus locations
+    loadBusLocations();
+    
+    // Set up periodic updates every 15 seconds for real-time tracking
+    updateInterval = setInterval(loadBusLocations, 15000);
+    
+    console.log("✅ Google Maps initialized successfully");
+}
+
+function loadBusLocations() {
+    fetch('{% url "gps_tracking:api_bus_locations" %}')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.buses) {
+                updateBusMarkers(data.buses);
+                updateBusStats(data);
+                console.log(`📍 Updated ${data.buses.length} bus locations`);
+            } else {
+                console.error('Invalid data received:', data);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error loading bus locations:', error);
+            // Show error in UI
+            document.getElementById('online-count').textContent = 'Error';
+            document.getElementById('last-updated').textContent = 'Failed';
+        });
+}
+
+function updateBusMarkers(buses) {
+    let onlineCount = 0;
+    
+    // Clear old markers that no longer exist
+    Object.keys(markers).forEach(busId => {
+        if (!buses.find(bus => bus.bus_id.toString() === busId)) {
+            markers[busId].setMap(null);
+            delete markers[busId];
+            if (infoWindows[busId]) {
+                infoWindows[busId].close();
+                delete infoWindows[busId];
+            }
+        }
+    });
+    
+    buses.forEach(bus => {
+        const position = { lat: bus.latitude, lng: bus.longitude };
+        const isOnline = bus.is_online;
+        const busId = bus.bus_id.toString();
+        
+        if (isOnline) onlineCount++;
+        
+        // Determine marker color based on status
+        let fillColor = '#6B7280'; // Gray for offline
+        let strokeColor = '#374151';
+        if (isOnline) {
+            if (bus.is_moving) {
+                fillColor = '#10B981'; // Green for moving
+                strokeColor = '#059669';
+            } else {
+                fillColor = '#F59E0B'; // Orange for stopped
+                strokeColor = '#D97706';
+            }
+        }
+        
+        // Create custom bus icon with bus number
+        const busIcon = {
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Bus body -->
+                    <rect x="8" y="12" width="24" height="16" rx="2" fill="${fillColor}" stroke="white" stroke-width="2"/>
+                    <!-- Bus windows -->
+                    <rect x="10" y="14" width="6" height="4" rx="1" fill="white" opacity="0.8"/>
+                    <rect x="18" y="14" width="6" height="4" rx="1" fill="white" opacity="0.8"/>
+                    <rect x="26" y="14" width="4" height="4" rx="1" fill="white" opacity="0.8"/>
+                    <!-- Bus wheels -->
+                    <circle cx="13" cy="28" r="2" fill="#374151"/>
+                    <circle cx="27" cy="28" r="2" fill="#374151"/>
+                    <!-- Bus number background -->
+                    <rect x="12" y="19" width="16" height="8" rx="1" fill="white" opacity="0.9"/>
+                    <!-- Bus number text -->
+                    <text x="20" y="25" text-anchor="middle" fill="${strokeColor}" font-size="8" font-weight="bold" font-family="Arial, sans-serif">${bus.bus_number}</text>
+                </svg>
+            `),
+            scaledSize: new google.maps.Size(40, 40),
+            anchor: new google.maps.Point(20, 30)
+        };
+        
+        // Create or update marker
+        if (!markers[busId]) {
+            markers[busId] = new google.maps.Marker({
+                position: position,
+                map: map,
+                title: `Bus ${bus.bus_number} - ${bus.route_name || 'No Route'}`,
+                icon: busIcon,
+                animation: isOnline && bus.is_moving ? google.maps.Animation.DROP : null
+            });
+            
+            // Create info window
+            infoWindows[busId] = new google.maps.InfoWindow();
+            
+            markers[busId].addListener('click', function() {
+                showBusInfo(busId, bus);
+            });
+        } else {
+            // Update existing marker position and icon
+            markers[busId].setPosition(position);
+            markers[busId].setIcon(busIcon);
+            markers[busId].setTitle(`Bus ${bus.bus_number} - ${bus.route_name || 'No Route'}`);
+            
+            // Add subtle animation for moving buses
+            if (isOnline && bus.is_moving && !markers[busId].getAnimation()) {
+                markers[busId].setAnimation(google.maps.Animation.BOUNCE);
+                setTimeout(() => {
+                    markers[busId].setAnimation(null);
+                }, 2000);
+            }
+        }
+        
+        // Update bus status in list
+        updateBusStatusInList(bus);
+    });
+    
+    // Update online count
+    document.getElementById('online-count').textContent = onlineCount;
+}
+
+function updateBusStatusInList(bus) {
+    const statusElement = document.getElementById(`bus-status-${bus.bus_id}`);
+    const indicatorElement = document.getElementById(`bus-indicator-${bus.bus_id}`);
+    
+    if (statusElement) {
+        let statusText = '';
+        if (bus.is_online) {
+            if (bus.is_moving) {
+                statusText = `Moving • ${Math.round(bus.speed)} km/h`;
+            } else {
+                statusText = `Stopped • ${Math.round(bus.speed)} km/h`;
+            }
+        } else {
+            statusText = `Offline • Last seen ${bus.minutes_ago}m ago`;
+        }
+        statusElement.textContent = statusText;
+    }
+    
+    if (indicatorElement) {
+        let indicatorClass = 'w-3 h-3 rounded-full ';
+        if (bus.is_online) {
+            indicatorClass += bus.is_moving ? 'bg-green-400' : 'bg-orange-400';
+        } else {
+            indicatorClass += 'bg-gray-400';
+        }
+        indicatorElement.className = indicatorClass;
+    }
+}
+
+function updateBusStats(data) {
+    const now = new Date();
+    document.getElementById('last-updated').textContent = now.toLocaleTimeString();
+    
+    // Update total count if element exists
+    const totalElement = document.querySelector('.text-blue-600');
+    if (totalElement && data.total_buses !== undefined) {
+        totalElement.textContent = data.total_buses;
+    }
+}
+
+function showBusInfo(busId, busData) {
+    const lastUpdate = new Date(busData.timestamp);
+    const statusText = busData.is_online ? 
+        (busData.is_moving ? 'Moving' : 'Stopped') : 'Offline';
+    
+    // Create status badge with appropriate color
+    let statusBadge = '';
+    if (busData.is_online) {
+        if (busData.is_moving) {
+            statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <svg class="w-1.5 h-1.5 mr-1" fill="currentColor" viewBox="0 0 8 8">
+                    <circle cx="4" cy="4" r="3"/>
+                </svg>
+                Moving
+            </span>`;
+        } else {
+            statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                <svg class="w-1.5 h-1.5 mr-1" fill="currentColor" viewBox="0 0 8 8">
+                    <circle cx="4" cy="4" r="3"/>
+                </svg>
+                Stopped
+            </span>`;
+        }
+    } else {
+        statusBadge = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            <svg class="w-1.5 h-1.5 mr-1" fill="currentColor" viewBox="0 0 8 8">
+                <circle cx="4" cy="4" r="3"/>
+            </svg>
+            Offline
+        </span>`;
+    }
+    
+    const content = `
+        <div class="p-4 max-w-sm">
+            <div class="flex items-start justify-between mb-3">
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-900 mb-1">🚌 Bus ${busData.bus_number}</h4>
+                    <p class="text-sm text-gray-600">${busData.route_name || 'No Route Assigned'}</p>
+                </div>
+                <div>${statusBadge}</div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3 mb-3 text-sm">
+                <div class="bg-gray-50 p-2 rounded">
+                    <p class="text-gray-500 text-xs">Speed</p>
+                    <p class="font-semibold">${Math.round(busData.speed)} km/h</p>
+                </div>
+                <div class="bg-gray-50 p-2 rounded">
+                    <p class="text-gray-500 text-xs">Last Updated</p>
+                    <p class="font-semibold">${lastUpdate.toLocaleTimeString()}</p>
+                </div>
+            </div>
+            
+            ${busData.accuracy ? `
+            <div class="text-xs text-gray-500 mb-3 flex items-center">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                Accuracy: ±${Math.round(busData.accuracy)}m
+            </div>
+            ` : ''}
+            
+            <div class="flex space-x-2">
+                <a href="{% url 'gps_tracking:bus_detail' 0 %}".replace('0', busId) 
+                   class="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded text-sm font-medium hover:bg-blue-700 transition-colors">
+                    View Details
+                </a>
+                ${busData.route_name ? `
+                <button onclick="trackBus(${busId})" 
+                        class="flex-1 bg-green-600 text-white py-2 px-3 rounded text-sm font-medium hover:bg-green-700 transition-colors">
+                    Track Route
+                </button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    infoWindows[busId].setContent(content);
+    infoWindows[busId].open(map, markers[busId]);
+}
+
+function trackBus(busId) {
+    // Focus on the bus and start following it
+    if (markers[busId]) {
+        map.setCenter(markers[busId].getPosition());
+        map.setZoom(16);
+        
+        // Add a subtle pulse animation to the focused bus
+        const currentIcon = markers[busId].getIcon();
+        markers[busId].setAnimation(google.maps.Animation.BOUNCE);
+        setTimeout(() => {
+            markers[busId].setAnimation(null);
+        }, 3000);
+        
+        console.log(`Now tracking bus ${busId}`);
+    }
+}
+
+function focusBus(busId) {
+    if (markers[busId]) {
+        map.setCenter(markers[busId].getPosition());
+        map.setZoom(16);
+        google.maps.event.trigger(markers[busId], 'click');
+    }
+}
+
+// Error handling for Google Maps
+function handleMapError() {
+    console.error("❌ Google Maps failed to load");
+    document.getElementById('map').innerHTML = `
+        <div class="flex items-center justify-center h-full bg-gray-100 rounded">
+            <div class="text-center p-6">
+                <div class="text-red-500 text-3xl mb-4">⚠️</div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Google Maps Unavailable</h3>
+                <p class="text-gray-600 mb-2">Unable to load Google Maps</p>
+                <p class="text-sm text-gray-500">Possible issues:</p>
+                <ul class="text-xs text-gray-500 mt-2">
+                    <li>• Invalid or missing API key</li>
+                    <li>• Network connection problems</li>
+                    <li>• API quota exceeded</li>
+                </ul>
+            </div>
+        </div>
+    `;
+}
+
+// Initialize when page loads
+window.onload = function() {
+    // Check if Google Maps is available
+    if (typeof google === 'undefined') {
+        console.warn("Google Maps not loaded, showing error");
+        handleMapError();
+    }
+};
+
+// Cleanup interval when leaving page
+window.addEventListener('beforeunload', function() {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+});
+</script>
+
+<script async defer 
+        src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap&v=weekly"
+        onerror="handleMapError()">
+</script>
+{% endblock %}

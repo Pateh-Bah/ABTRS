@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}GPS Management Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-2px);
+    }
+    .metric-large {
+        font-size: 2.5rem;
+        font-weight: bold;
+        line-height: 1;
+    }
+    .alert-item {
+        background: #FEF3C7;
+        border-left: 4px solid #F59E0B;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        border-radius: 0 4px 4px 0;
+    }
+    .emergency-item {
+        background: #FEE2E2;
+        border-left: 4px solid #EF4444;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        border-radius: 0 4px 4px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">GPS Management Dashboard</h1>
+        <p class="text-gray-600">Monitor and manage all bus tracking activities</p>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="dashboard-card text-center">
+            <div class="metric-large text-blue-600">{{ total_buses }}</div>
+            <div class="text-gray-600 mt-2">Total Buses</div>
+        </div>
+        <div class="dashboard-card text-center">
+            <div class="metric-large text-green-600">{{ active_buses }}</div>
+            <div class="text-gray-600 mt-2">Online Now</div>
+        </div>
+        <div class="dashboard-card text-center">
+            <div class="metric-large text-orange-600">{{ recent_speed_alerts.count }}</div>
+            <div class="text-gray-600 mt-2">Speed Alerts</div>
+        </div>
+        <div class="dashboard-card text-center">
+            <div class="metric-large text-red-600">{{ recent_emergency_alerts.count }}</div>
+            <div class="text-gray-600 mt-2">Emergency Alerts</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <a href="{% url 'gps_tracking:admin_bus_list' %}" 
+           class="dashboard-card text-center hover:bg-blue-50 border-2 border-transparent hover:border-blue-200">
+            <div class="text-blue-600 text-2xl mb-2">🚌</div>
+            <div class="font-semibold">View All Buses</div>
+            <div class="text-sm text-gray-600 mt-1">Monitor locations</div>
+        </a>
+        <a href="{% url 'gps_tracking:admin_speed_alerts' %}" 
+           class="dashboard-card text-center hover:bg-orange-50 border-2 border-transparent hover:border-orange-200">
+            <div class="text-orange-600 text-2xl mb-2">⚡</div>
+            <div class="font-semibold">Speed Alerts</div>
+            <div class="text-sm text-gray-600 mt-1">Manage violations</div>
+        </a>
+        <a href="{% url 'gps_tracking:admin_emergency_alerts' %}" 
+           class="dashboard-card text-center hover:bg-red-50 border-2 border-transparent hover:border-red-200">
+            <div class="text-red-600 text-2xl mb-2">🚨</div>
+            <div class="font-semibold">Emergency Alerts</div>
+            <div class="text-sm text-gray-600 mt-1">Respond to emergencies</div>
+        </a>
+        <a href="{% url 'gps_tracking:public_map' %}" 
+           class="dashboard-card text-center hover:bg-green-50 border-2 border-transparent hover:border-green-200">
+            <div class="text-green-600 text-2xl mb-2">🗺️</div>
+            <div class="font-semibold">Live Map</div>
+            <div class="text-sm text-gray-600 mt-1">View tracking map</div>
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Recent Speed Alerts -->
+        <div class="dashboard-card">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Recent Speed Alerts</h3>
+                <a href="{% url 'gps_tracking:admin_speed_alerts' %}" 
+                   class="text-blue-600 hover:underline text-sm">View All →</a>
+            </div>
+            <div style="max-height: 300px; overflow-y: auto;">
+                {% for alert in recent_speed_alerts %}
+                <div class="alert-item">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="font-medium">Bus {{ alert.bus.bus_number }}</p>
+                            <p class="text-sm text-gray-600">{{ alert.alert_message }}</p>
+                            <p class="text-xs text-gray-500 mt-1">{{ alert.created_at|timesince }} ago</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="font-bold text-orange-600">{{ alert.speed|floatformat:0 }} km/h</span>
+                            {% if not alert.is_acknowledged %}
+                            <form method="post" action="{% url 'gps_tracking:acknowledge_speed_alert' alert.id %}" class="mt-1">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="text-xs bg-orange-600 text-white px-2 py-1 rounded hover:bg-orange-700">
+                                    Acknowledge
+                                </button>
+                            </form>
+                            {% else %}
+                            <div class="text-xs text-green-600 mt-1">✓ Acknowledged</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center text-gray-500 py-8">
+                    <p>No recent speed alerts</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Recent Emergency Alerts -->
+        <div class="dashboard-card">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Emergency Alerts</h3>
+                <a href="{% url 'gps_tracking:admin_emergency_alerts' %}" 
+                   class="text-blue-600 hover:underline text-sm">View All →</a>
+            </div>
+            <div style="max-height: 300px; overflow-y: auto;">
+                {% for alert in recent_emergency_alerts %}
+                <div class="emergency-item">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="font-medium">Bus {{ alert.bus.bus_number }}</p>
+                            <p class="text-sm text-gray-600">{{ alert.message }}</p>
+                            <p class="text-xs text-gray-500 mt-1">
+                                {{ alert.alert_type|title }} • {{ alert.created_at|timesince }} ago
+                            </p>
+                        </div>
+                        <div class="text-right">
+                            {% if not alert.is_resolved %}
+                            <form method="post" action="{% url 'gps_tracking:resolve_emergency_alert' alert.id %}" class="mt-1">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700">
+                                    Resolve
+                                </button>
+                            </form>
+                            {% else %}
+                            <div class="text-xs text-green-600 mt-1">✓ Resolved</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center text-gray-500 py-8">
+                    <p>No emergency alerts</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="mt-8 dashboard-card">
+        <h3 class="text-lg font-semibold mb-4">System Status</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="text-center">
+                <div class="text-green-600 text-2xl mb-2">✅</div>
+                <div class="font-medium">GPS Tracking</div>
+                <div class="text-sm text-gray-600">Online</div>
+            </div>
+            <div class="text-center">
+                <div class="text-green-600 text-2xl mb-2">🗺️</div>
+                <div class="font-medium">Maps Integration</div>
+                <div class="text-sm text-gray-600">Active</div>
+            </div>
+            <div class="text-center">
+                <div class="text-green-600 text-2xl mb-2">📡</div>
+                <div class="font-medium">Real-time Updates</div>
+                <div class="text-sm text-gray-600">30s intervals</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh dashboard data every 2 minutes
+setInterval(function() {
+    location.reload();
+}, 120000);
+
+// Show confirmation for alert actions
+document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        const action = this.querySelector('button').textContent.trim();
+        if (!confirm(`Are you sure you want to ${action.toLowerCase()} this alert?`)) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block title %}Live Bus Tracking - Waka-Fine Bus{% endblock %}
+
+{% block extra_head %}
+<!-- Google Maps API -->
+<script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap"></script>
+<style>
+    #map {
+        height: 500px;
+        width: 100%;
+        border-radius: 0.5rem;
+    }
+    .bus-info-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-800 mb-4">
+            <i class="fas fa-map-marker-alt text-blue-600"></i>
+            Live Bus Tracking
+        </h1>
+        <p class="text-gray-600 text-lg">Track your bus in real-time and get accurate arrival estimates</p>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Route</label>
+                <select id="routeFilter" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">All Routes</option>
+                    {% for route in routes %}
+                    <option value="{{ route.id }}">{{ route.origin }} → {{ route.destination }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select id="statusFilter" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">All Buses</option>
+                    <option value="moving">Moving</option>
+                    <option value="stationary">Stationary</option>
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button onclick="refreshMap()" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-sync-alt mr-2"></i>
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+        <div id="map"></div>
+    </div>
+
+    <!-- Bus List -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6" id="busList">
+        {% for bus in buses %}
+        <div class="bus-info-card rounded-lg p-6 shadow-md hover:shadow-lg transition-shadow duration-300" data-bus-id="{{ bus.id }}">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-semibold text-gray-800">{{ bus.bus_name }}</h3>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                    Active
+                </span>
+            </div>
+            
+            <div class="space-y-3">
+                <div class="flex items-center text-gray-600">
+                    <i class="fas fa-bus mr-3 text-blue-500"></i>
+                    <span>{{ bus.bus_number }}</span>
+                </div>
+                
+                {% if bus.assigned_route %}
+                <div class="flex items-center text-gray-600">
+                    <i class="fas fa-route mr-3 text-green-500"></i>
+                    <span>{{ bus.assigned_route.origin }} → {{ bus.assigned_route.destination }}</span>
+                </div>
+                {% endif %}
+                
+                {% if bus.current_driver_name %}
+                <div class="flex items-center text-gray-600">
+                    <i class="fas fa-user mr-3 text-yellow-500"></i>
+                    <span>{{ bus.current_driver_name }}</span>
+                </div>
+                {% endif %}
+                
+                {% if bus.last_location_update %}
+                <div class="flex items-center text-gray-600">
+                    <i class="fas fa-clock mr-3 text-purple-500"></i>
+                    <span class="last-update" data-timestamp="{{ bus.last_location_update|date:'c' }}">
+                        Last update: {{ bus.last_location_update|timesince }} ago
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="mt-4 pt-4 border-t border-gray-200">
+                <button onclick="focusOnBus({{ bus.id }})" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-search mr-2"></i>
+                    View on Map
+                </button>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center py-12">
+            <i class="fas fa-bus text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-500 mb-2">No Active Buses</h3>
+            <p class="text-gray-400">Currently no buses are transmitting GPS data.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Real-time Status -->
+    <div class="mt-8 bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-800">Real-time Status</h3>
+                <p class="text-gray-600">Last updated: <span id="lastRefresh">{{ now|date:'H:i:s' }}</span></p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-green-600">{{ buses|length }}</div>
+                    <div class="text-sm text-gray-500">Active Buses</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-blue-600" id="movingBusCount">0</div>
+                    <div class="text-sm text-gray-500">Moving</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bus Detail Modal -->
+<div id="busModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 max-w-lg mx-4 w-full max-h-96 overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-semibold" id="modalBusName">Bus Details</h3>
+            <button onclick="closeBusModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div id="modalContent">
+            <!-- Content will be loaded dynamically -->
+        </div>
+    </div>
+</div>
+
+<script>
+let map;
+let busMarkers = {};
+let busData = [];
+
+// Initialize Google Map
+function initMap() {
+    // Center on Sierra Leone
+    map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 10,
+        center: { lat: 8.460555, lng: -11.779889 }, // Freetown, Sierra Leone
+        styles: [
+            // Custom map styling for better visibility
+            {
+                featureType: 'road',
+                elementType: 'geometry',
+                stylers: [{ color: '#f5f1e6' }]
+            },
+            {
+                featureType: 'water',
+                elementType: 'geometry',
+                stylers: [{ color: '#c9c9c9' }]
+            }
+        ]
+    });
+    
+    // Load initial bus data
+    loadBusLocations();
+    
+    // Set up real-time updates
+    setInterval(loadBusLocations, 30000); // Update every 30 seconds
+}
+
+// Load bus locations from API
+async function loadBusLocations() {
+    try {
+        const response = await fetch('/gps/api/buses/locations/');
+        const data = await response.json();
+        busData = data.buses;
+        
+        updateMapMarkers();
+        updateBusCount();
+        updateLastRefresh();
+        
+    } catch (error) {
+        console.error('Error loading bus locations:', error);
+    }
+}
+
+// Update map markers
+function updateMapMarkers() {
+    // Clear existing markers
+    Object.values(busMarkers).forEach(marker => marker.setMap(null));
+    busMarkers = {};
+    
+    // Add new markers
+    busData.forEach(bus => {
+        const position = { lat: bus.latitude, lng: bus.longitude };
+        
+        // Create custom marker icon based on bus status
+        const icon = {
+            url: bus.is_moving ? '/static/images/bus-moving.png' : '/static/images/bus-stopped.png',
+            scaledSize: new google.maps.Size(40, 40),
+            origin: new google.maps.Point(0, 0),
+            anchor: new google.maps.Point(20, 40)
+        };
+        
+        const marker = new google.maps.Marker({
+            position: position,
+            map: map,
+            icon: icon,
+            title: bus.name,
+            animation: google.maps.Animation.DROP
+        });
+        
+        // Create info window
+        const infoWindow = new google.maps.InfoWindow({
+            content: createInfoWindowContent(bus)
+        });
+        
+        marker.addListener('click', () => {
+            // Close all other info windows
+            Object.values(busMarkers).forEach(({infoWindow: iw}) => iw.close());
+            infoWindow.open(map, marker);
+        });
+        
+        busMarkers[bus.id] = { marker, infoWindow };
+    });
+}
+
+// Create info window content
+function createInfoWindowContent(bus) {
+    return `
+        <div class="p-2 max-w-xs">
+            <h3 class="font-semibold text-lg mb-2">${bus.name}</h3>
+            <div class="space-y-1 text-sm">
+                <div><strong>Number:</strong> ${bus.number}</div>
+                ${bus.route ? `<div><strong>Route:</strong> ${bus.route.origin} → ${bus.route.destination}</div>` : ''}
+                ${bus.driver ? `<div><strong>Driver:</strong> ${bus.driver}</div>` : ''}
+                <div><strong>Speed:</strong> ${bus.speed.toFixed(1)} km/h</div>
+                <div><strong>Status:</strong> <span class="font-medium ${bus.is_moving ? 'text-green-600' : 'text-red-600'}">${bus.is_moving ? 'Moving' : 'Stopped'}</span></div>
+            </div>
+            <button onclick="showBusDetails(${bus.id})" class="mt-2 bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                View Details
+            </button>
+        </div>
+    `;
+}
+
+// Focus on specific bus
+function focusOnBus(busId) {
+    const bus = busData.find(b => b.id === busId);
+    if (bus && busMarkers[busId]) {
+        map.setCenter({ lat: bus.latitude, lng: bus.longitude });
+        map.setZoom(15);
+        busMarkers[busId].infoWindow.open(map, busMarkers[busId].marker);
+    }
+}
+
+// Show bus details in modal
+async function showBusDetails(busId) {
+    try {
+        const response = await fetch(`/gps/bus/${busId}/`);
+        const html = await response.text();
+        
+        // Extract content from the response
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const content = doc.querySelector('.bus-details-content');
+        
+        if (content) {
+            document.getElementById('modalContent').innerHTML = content.innerHTML;
+            document.getElementById('busModal').classList.remove('hidden');
+            document.getElementById('busModal').classList.add('flex');
+        }
+    } catch (error) {
+        console.error('Error loading bus details:', error);
+    }
+}
+
+// Close bus modal
+function closeBusModal() {
+    document.getElementById('busModal').classList.add('hidden');
+    document.getElementById('busModal').classList.remove('flex');
+}
+
+// Update bus count display
+function updateBusCount() {
+    const movingCount = busData.filter(bus => bus.is_moving).length;
+    document.getElementById('movingBusCount').textContent = movingCount;
+}
+
+// Update last refresh time
+function updateLastRefresh() {
+    const now = new Date();
+    document.getElementById('lastRefresh').textContent = now.toLocaleTimeString();
+}
+
+// Refresh map manually
+function refreshMap() {
+    loadBusLocations();
+}
+
+// Filter functionality
+document.getElementById('routeFilter').addEventListener('change', function() {
+    // Implement route filtering logic
+    filterBuses();
+});
+
+document.getElementById('statusFilter').addEventListener('change', function() {
+    // Implement status filtering logic
+    filterBuses();
+});
+
+function filterBuses() {
+    const routeFilter = document.getElementById('routeFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    // Hide/show markers based on filters
+    Object.entries(busMarkers).forEach(([busId, {marker}]) => {
+        const bus = busData.find(b => b.id == busId);
+        let show = true;
+        
+        if (routeFilter && bus.route && bus.route.id != routeFilter) {
+            show = false;
+        }
+        
+        if (statusFilter) {
+            if (statusFilter === 'moving' && !bus.is_moving) show = false;
+            if (statusFilter === 'stationary' && bus.is_moving) show = false;
+        }
+        
+        marker.setVisible(show);
+    });
+    
+    // Also filter bus cards
+    document.querySelectorAll('[data-bus-id]').forEach(card => {
+        const busId = card.dataset.busId;
+        const bus = busData.find(b => b.id == busId);
+        let show = true;
+        
+        if (routeFilter && bus.route && bus.route.id != routeFilter) {
+            show = false;
+        }
+        
+        if (statusFilter) {
+            if (statusFilter === 'moving' && !bus.is_moving) show = false;
+            if (statusFilter === 'stationary' && bus.is_moving) show = false;
+        }
+        
+        card.style.display = show ? 'block' : 'none';
+    });
+}
+
+// Close modal when clicking outside
+document.getElementById('busModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeBusModal();
+    }
+});
+</script>
+{% endblock %}

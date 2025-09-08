@@ -1,0 +1,187 @@
+{% load static %}
+<!-- GPS Navigation Component -->
+{% if user.is_authenticated %}
+<div id="gps-nav" class="fixed bottom-4 right-4 z-50" x-data="gpsNav()" x-init="init()">
+    <!-- GPS Quick Access Button -->
+    <div class="relative">
+        <button @click="toggleMap()" 
+                class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+            <i class="fas fa-map-marked-alt text-lg"></i>
+        </button>
+        
+        <!-- Online buses indicator -->
+        <div class="absolute -top-2 -right-2 bg-green-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold" 
+             x-show="onlineBusCount > 0" x-text="onlineBusCount">
+        </div>
+    </div>
+
+    <!-- Mini GPS Map Panel -->
+    <div x-show="showMap" 
+         x-transition:enter="transition ease-out duration-300 transform"
+         x-transition:enter-start="opacity-0 scale-95 translate-y-2"
+         x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200 transform"
+         x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+         x-transition:leave-end="opacity-0 scale-95 translate-y-2"
+         @click.away="showMap = false"
+         class="absolute bottom-16 right-0 bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
+         style="width: 300px; height: 250px;">
+        
+        <!-- Panel Header -->
+        <div class="bg-blue-600 text-white p-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-bus"></i>
+                <span class="font-semibold text-sm">Live Bus Tracking</span>
+            </div>
+            <button @click="showMap = false" class="hover:bg-blue-700 p-1 rounded">
+                <i class="fas fa-times text-xs"></i>
+            </button>
+        </div>
+
+        <!-- Mini Map -->
+        <div id="mini-map" class="w-full h-40 bg-gray-100"></div>
+
+        <!-- Footer -->
+        <div class="p-2 bg-gray-50 flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-3">
+                <span class="flex items-center">
+                    <div class="w-2 h-2 bg-green-400 rounded-full mr-1"></div>
+                    <span x-text="onlineBusCount"></span> Online
+                </span>
+                <span class="flex items-center">
+                    <div class="w-2 h-2 bg-gray-400 rounded-full mr-1"></div>
+                    <span x-text="totalBusCount - onlineBusCount"></span> Offline
+                </span>
+            </div>
+            <a href="{% url 'gps_tracking:public_map' %}" 
+               class="text-blue-600 hover:text-blue-800 font-medium">
+                View Full Map →
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function gpsNav() {
+    return {
+        showMap: false,
+        miniMap: null,
+        markers: {},
+        onlineBusCount: 0,
+        totalBusCount: 0,
+        updateInterval: null,
+        
+        init() {
+            this.loadInitialData();
+            // Update every 30 seconds
+            this.updateInterval = setInterval(() => {
+                if (this.showMap && this.miniMap) {
+                    this.updateBusLocations();
+                }
+            }, 30000);
+        },
+
+        toggleMap() {
+            this.showMap = !this.showMap;
+            if (this.showMap && !this.miniMap) {
+                this.$nextTick(() => {
+                    this.initMiniMap();
+                });
+            }
+        },
+
+        initMiniMap() {
+            const mapElement = document.getElementById('mini-map');
+            if (!mapElement || typeof google === 'undefined') {
+                console.warn('Google Maps not available for mini map');
+                return;
+            }
+
+            this.miniMap = new google.maps.Map(mapElement, {
+                zoom: 11,
+                center: { lat: 8.4840, lng: -13.2299 }, // Freetown coordinates
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+                disableDefaultUI: true,
+                zoomControl: true,
+                styles: [
+                    {
+                        featureType: "poi",
+                        elementType: "labels",
+                        stylers: [{ visibility: "off" }]
+                    }
+                ]
+            });
+
+            this.updateBusLocations();
+        },
+
+        async loadInitialData() {
+            try {
+                const response = await fetch('{% url "gps_tracking:api_bus_locations" %}');
+                const data = await response.json();
+                if (data.success) {
+                    this.onlineBusCount = data.online_buses || 0;
+                    this.totalBusCount = data.total_buses || 0;
+                }
+            } catch (error) {
+                console.error('Error loading initial GPS data:', error);
+            }
+        },
+
+        async updateBusLocations() {
+            if (!this.miniMap) return;
+
+            try {
+                const response = await fetch('{% url "gps_tracking:api_bus_locations" %}');
+                const data = await response.json();
+                
+                if (data.success && data.buses) {
+                    this.onlineBusCount = data.online_buses || 0;
+                    this.totalBusCount = data.total_buses || 0;
+                    
+                    // Clear old markers
+                    Object.values(this.markers).forEach(marker => marker.setMap(null));
+                    this.markers = {};
+                    
+                    // Add new markers
+                    data.buses.forEach(bus => {
+                        if (bus.is_online) {
+                            const position = { lat: bus.latitude, lng: bus.longitude };
+                            
+                            this.markers[bus.bus_id] = new google.maps.Marker({
+                                position: position,
+                                map: this.miniMap,
+                                title: `Bus ${bus.bus_number}`,
+                                icon: {
+                                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="8" fill="${bus.is_moving ? '#10B981' : '#F59E0B'}" stroke="white" stroke-width="2"/>
+                                            <text x="12" y="16" text-anchor="middle" fill="white" font-size="8" font-weight="bold">${bus.bus_number}</text>
+                                        </svg>
+                                    `),
+                                    scaledSize: new google.maps.Size(24, 24),
+                                    anchor: new google.maps.Point(12, 12)
+                                }
+                            });
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error updating bus locations:', error);
+            }
+        },
+
+        destroy() {
+            if (this.updateInterval) {
+                clearInterval(this.updateInterval);
+            }
+        }
+    }
+}
+
+// Cleanup when page unloads
+window.addEventListener('beforeunload', function() {
+    // Alpine.js will handle cleanup automatically
+});
+</script>
+{% endif %}

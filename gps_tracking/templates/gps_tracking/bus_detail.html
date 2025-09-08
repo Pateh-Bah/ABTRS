@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bus {{ bus.bus_number }} - GPS Tracking{% endblock %}
+
+{% block extra_css %}
+<style>
+    #map {
+        width: 100%;
+        height: 50vh;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .metric-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #3B82F6;
+    }
+    .alert-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #F59E0B;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Bus {{ bus.bus_number }}</h1>
+                <p class="text-gray-600 mt-1">{{ bus.assigned_route.name|default:"No Route Assigned" }}</p>
+            </div>
+            <a href="{% url 'gps_tracking:public_map' %}" 
+               class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                ← Back to Map
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column - Map and Location Info -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Map -->
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <h3 class="text-lg font-semibold mb-4">Current Location</h3>
+                <div id="map"></div>
+            </div>
+
+            <!-- Route Progress -->
+            {% if route_progress %}
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <h3 class="text-lg font-semibold mb-4">Route Progress</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-600">Current Stop:</span>
+                        <span class="font-medium">{{ route_progress.current_stop }}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full" 
+                             style="width: {{ route_progress.progress_percentage }}%"></div>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-600">Progress: {{ route_progress.progress_percentage }}%</span>
+                        {% if route_progress.estimated_arrival %}
+                        <span class="text-gray-600">ETA: {{ route_progress.estimated_arrival|time:"H:i" }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column - Stats and Alerts -->
+        <div class="space-y-6">
+            <!-- Current Status -->
+            <div class="metric-card">
+                <h3 class="text-lg font-semibold mb-4">Current Status</h3>
+                <div class="space-y-3">
+                    {% if current_location %}
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Speed:</span>
+                        <span class="font-medium" id="current-speed">{{ current_location.speed|floatformat:0 }} km/h</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Last Update:</span>
+                        <span class="font-medium" id="last-update">{{ current_location.timestamp|timesince }} ago</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Status:</span>
+                        <span class="font-medium">
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800" id="status-indicator">
+                                🟢 Online
+                            </span>
+                        </span>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-gray-500">
+                        <p>No location data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Bus Information -->
+            <div class="metric-card">
+                <h3 class="text-lg font-semibold mb-4">Bus Information</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Bus Number:</span>
+                        <span class="font-medium">{{ bus.bus_number }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Capacity:</span>
+                        <span class="font-medium">{{ bus.seat_capacity }} seats</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Route:</span>
+                        <span class="font-medium">{{ bus.assigned_route.name|default:"Not Assigned" }}</span>
+                    </div>
+                    {% if bus.assigned_route %}
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Distance:</span>
+                        <span class="font-medium">{{ bus.assigned_route.distance|floatformat:1 }} km</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Alerts -->
+            <div class="bg-white rounded-lg shadow-lg p-4">
+                <h3 class="text-lg font-semibold mb-4">Recent Alerts (24h)</h3>
+                <div class="space-y-2" style="max-height: 300px; overflow-y: auto;">
+                    {% for alert in recent_alerts %}
+                    <div class="alert-card">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-medium text-orange-800">Speed Alert</p>
+                                <p class="text-sm text-gray-600">{{ alert.alert_message }}</p>
+                                <p class="text-xs text-gray-500 mt-1">{{ alert.created_at|timesince }} ago</p>
+                            </div>
+                            <span class="text-orange-600 font-bold">{{ alert.speed|floatformat:0 }}</span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center text-gray-500 py-4">
+                        <p>No recent alerts</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let map;
+let busMarker;
+let routePath;
+
+function initMap() {
+    {% if current_location %}
+    const busPosition = { 
+        lat: {{ current_location.latitude }}, 
+        lng: {{ current_location.longitude }} 
+    };
+    {% else %}
+    const busPosition = { lat: 8.4840, lng: -13.2299 }; // Default to Freetown
+    {% endif %}
+
+    map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 15,
+        center: busPosition,
+        mapTypeId: google.maps.MapTypeId.ROADMAP
+    });
+
+    {% if current_location %}
+    // Add bus marker
+    busMarker = new google.maps.Marker({
+        position: busPosition,
+        map: map,
+        title: "Bus {{ bus.bus_number }}",
+        icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 12,
+            fillColor: '#10B981',
+            fillOpacity: 1,
+            strokeColor: '#FFFFFF',
+            strokeWeight: 3
+        }
+    });
+
+    // Add info window
+    const infoWindow = new google.maps.InfoWindow({
+        content: `
+            <div class="p-2">
+                <h4 class="font-semibold">Bus {{ bus.bus_number }}</h4>
+                <p class="text-sm">Speed: {{ current_location.speed|floatformat:0 }} km/h</p>
+                <p class="text-sm">Updated: {{ current_location.timestamp|time:"H:i" }}</p>
+            </div>
+        `
+    });
+
+    busMarker.addListener('click', function() {
+        infoWindow.open(map, busMarker);
+    });
+
+    // Auto-refresh location
+    setInterval(updateBusLocation, 30000);
+    {% else %}
+    // Show message for no location data
+    const infoWindow = new google.maps.InfoWindow({
+        position: busPosition,
+        content: '<div class="p-2 text-center"><p>No current location data available</p></div>'
+    });
+    infoWindow.open(map);
+    {% endif %}
+}
+
+function updateBusLocation() {
+    fetch(`/gps-tracking/api/bus/{{ bus.id }}/progress/`)
+        .then(response => response.json())
+        .then(data => {
+            // Update location display
+            console.log('Bus location updated:', data);
+        })
+        .catch(error => {
+            console.error('Error updating location:', error);
+        });
+}
+
+// Error handling
+function handleMapError() {
+    document.getElementById('map').innerHTML = `
+        <div class="flex items-center justify-center h-full bg-gray-100 rounded">
+            <div class="text-center">
+                <div class="text-red-500 text-xl mb-2">⚠️</div>
+                <p class="text-gray-600">Unable to load Google Maps</p>
+                <p class="text-sm text-gray-500 mt-1">Please check your internet connection</p>
+            </div>
+        </div>
+    `;
+}
+</script>
+
+<script async defer 
+        src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap&v=weekly"
+        onerror="handleMapError()">
+</script>
+{% endblock %}

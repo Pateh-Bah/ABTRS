@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+
+{% block title %}Driver Dashboard - GPS Tracking{% endblock %}
+
+{% block extra_css %}
+<style>
+    #map {
+        width: 100%;
+        height: 40vh;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    .driver-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Driver Dashboard</h1>
+        <p class="text-gray-600 mt-1">Monitor your bus location and status</p>
+    </div>
+
+    {% if bus %}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Map -->
+        <div class="lg:col-span-2">
+            <div class="driver-card">
+                <h3 class="text-lg font-semibold mb-4">Current Location</h3>
+                <div id="map"></div>
+                <div class="mt-4 text-center">
+                    <button onclick="updateLocation()" 
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        📍 Update My Location
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Panel -->
+        <div class="space-y-6">
+            <!-- Bus Info -->
+            <div class="driver-card">
+                <h3 class="text-lg font-semibold mb-4">My Bus</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Bus Number:</span>
+                        <span class="font-medium">{{ bus.bus_number }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Route:</span>
+                        <span class="font-medium">{{ bus.assigned_route.name|default:"Not Assigned" }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Capacity:</span>
+                        <span class="font-medium">{{ bus.seat_capacity }} seats</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Status -->
+            <div class="driver-card">
+                <h3 class="text-lg font-semibold mb-4">Current Status</h3>
+                <div class="space-y-3">
+                    {% if current_location %}
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Speed:</span>
+                        <span class="font-medium" id="current-speed">{{ current_location.speed|floatformat:0 }} km/h</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Last Update:</span>
+                        <span class="font-medium">{{ current_location.timestamp|timesince }} ago</span>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-gray-500">
+                        <p>No location data available</p>
+                        <button onclick="updateLocation()" 
+                                class="mt-2 text-blue-600 hover:underline text-sm">
+                            Share Location
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Emergency Button -->
+            <div class="driver-card">
+                <h3 class="text-lg font-semibold mb-4">Emergency</h3>
+                <button onclick="triggerEmergency()" 
+                        class="w-full bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 font-semibold">
+                    🚨 EMERGENCY ALERT
+                </button>
+                <p class="text-xs text-gray-500 mt-2 text-center">
+                    Use only in case of emergencies
+                </p>
+            </div>
+
+            <!-- Route Progress -->
+            {% if route_progress %}
+            <div class="driver-card">
+                <h3 class="text-lg font-semibold mb-4">Route Progress</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">Current Stop:</span>
+                        <span class="font-medium">{{ route_progress.current_stop }}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-600 h-2 rounded-full" 
+                             style="width: {{ route_progress.progress_percentage }}%"></div>
+                    </div>
+                    <div class="text-center text-sm text-gray-600">
+                        {{ route_progress.progress_percentage }}% Complete
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white rounded-lg shadow-lg p-8 text-center">
+        <div class="text-gray-500 text-xl mb-4">🚌</div>
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">No Bus Assigned</h3>
+        <p class="text-gray-600">You are not currently assigned to any bus. Please contact your supervisor.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+let map;
+let busMarker;
+let watchId;
+
+function initMap() {
+    {% if current_location %}
+    const initialPosition = { 
+        lat: {{ current_location.latitude }}, 
+        lng: {{ current_location.longitude }} 
+    };
+    {% else %}
+    const initialPosition = { lat: 8.4840, lng: -13.2299 }; // Freetown
+    {% endif %}
+
+    map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 15,
+        center: initialPosition,
+        mapTypeId: google.maps.MapTypeId.ROADMAP
+    });
+
+    {% if current_location %}
+    busMarker = new google.maps.Marker({
+        position: initialPosition,
+        map: map,
+        title: "My Bus",
+        icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 12,
+            fillColor: '#10B981',
+            fillOpacity: 1,
+            strokeColor: '#FFFFFF',
+            strokeWeight: 3
+        }
+    });
+    {% endif %}
+
+    // Start location tracking if supported
+    if (navigator.geolocation) {
+        startLocationTracking();
+    }
+}
+
+function startLocationTracking() {
+    if (navigator.geolocation) {
+        watchId = navigator.geolocation.watchPosition(
+            function(position) {
+                updateMapPosition(position.coords.latitude, position.coords.longitude);
+            },
+            function(error) {
+                console.error('Geolocation error:', error);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
+            }
+        );
+    }
+}
+
+function updateMapPosition(lat, lng) {
+    const newPosition = { lat: lat, lng: lng };
+    
+    if (busMarker) {
+        busMarker.setPosition(newPosition);
+    } else {
+        busMarker = new google.maps.Marker({
+            position: newPosition,
+            map: map,
+            title: "My Bus",
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 12,
+                fillColor: '#10B981',
+                fillOpacity: 1,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 3
+            }
+        });
+    }
+    
+    map.setCenter(newPosition);
+}
+
+function updateLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const speed = position.coords.speed ? position.coords.speed * 3.6 : 0; // Convert m/s to km/h
+                
+                // Send location to server
+                fetch(`/gps-tracking/api/bus/{{ bus.id }}/update-location/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({
+                        latitude: lat,
+                        longitude: lng,
+                        speed: speed,
+                        heading: position.coords.heading || 0
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        updateMapPosition(lat, lng);
+                        document.getElementById('current-speed').textContent = Math.round(speed) + ' km/h';
+                        alert('Location updated successfully!');
+                    } else {
+                        alert('Failed to update location: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating location:', error);
+                    alert('Failed to update location');
+                });
+            },
+            function(error) {
+                alert('Unable to get your location: ' + error.message);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000
+            }
+        );
+    } else {
+        alert('Geolocation is not supported by this browser');
+    }
+}
+
+function triggerEmergency() {
+    if (!confirm('Are you sure you want to trigger an emergency alert? This will notify all supervisors immediately.')) {
+        return;
+    }
+    
+    const message = prompt('Please describe the emergency (optional):') || 'Emergency alert triggered by driver';
+    
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                sendEmergencyAlert(message, position.coords.latitude, position.coords.longitude);
+            },
+            function(error) {
+                sendEmergencyAlert(message, null, null);
+            }
+        );
+    } else {
+        sendEmergencyAlert(message, null, null);
+    }
+}
+
+function sendEmergencyAlert(message, lat, lng) {
+    fetch(`/gps-tracking/api/bus/{{ bus.id }}/emergency/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            alert_type: 'driver_emergency',
+            message: message,
+            latitude: lat,
+            longitude: lng
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Emergency alert sent successfully! Help is on the way.');
+        } else {
+            alert('Failed to send emergency alert: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error sending emergency alert:', error);
+        alert('Failed to send emergency alert');
+    });
+}
+
+// Auto-update location every 2 minutes
+{% if bus %}
+setInterval(function() {
+    updateLocation();
+}, 120000);
+{% endif %}
+
+// Error handling
+function handleMapError() {
+    document.getElementById('map').innerHTML = `
+        <div class="flex items-center justify-center h-full bg-gray-100 rounded">
+            <div class="text-center">
+                <div class="text-red-500 text-xl mb-2">⚠️</div>
+                <p class="text-gray-600">Unable to load map</p>
+            </div>
+        </div>
+    `;
+}
+</script>
+
+{% csrf_token %}
+
+<script async defer 
+        src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap&v=weekly"
+        onerror="handleMapError()">
+</script>
+{% endblock %}

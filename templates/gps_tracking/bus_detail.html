@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Bus Detail - Waka-Fine Bus{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">{{ bus.bus_name }}</h1>
+            <p class="text-gray-600">{{ bus.bus_number }} • {{ bus.get_bus_type_display }}</p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="{% url 'gps_tracking:public_map' %}" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Map
+            </a>
+        </div>
+    </div>
+
+    <div class="bus-details-content">
+        <!-- Current Status -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Current Status</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                        <i class="fas fa-map-marker-alt text-blue-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">Current Location</div>
+                        {% if bus.current_latitude and bus.current_longitude %}
+                            <div class="font-semibold text-gray-800">{{ bus.current_latitude|floatformat:4 }}, {{ bus.current_longitude|floatformat:4 }}</div>
+                            <div class="text-sm text-gray-600">Updated {{ bus.last_location_update|timesince }} ago</div>
+                        {% else %}
+                            <div class="font-semibold text-gray-500">GPS not available</div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                        <i class="fas fa-tachometer-alt text-green-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">Current Speed</div>
+                        <div class="font-semibold text-gray-800">{{ bus.latest_speed|floatformat:1 }} km/h</div>
+                        <div class="text-sm text-gray-600">
+                            {% if bus.is_moving %}
+                                <span class="text-green-600">Moving</span>
+                            {% else %}
+                                <span class="text-red-600">Stopped</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                        <i class="fas fa-user-tie text-purple-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm text-gray-500">Driver</div>
+                        {% if bus.current_driver_name %}
+                            <div class="font-semibold text-gray-800">{{ bus.current_driver_name }}</div>
+                            {% if bus.current_driver_phone %}
+                                <div class="text-sm text-gray-600">{{ bus.current_driver_phone }}</div>
+                            {% endif %}
+                        {% else %}
+                            <div class="font-semibold text-gray-500">Not assigned</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Route Information -->
+        {% if bus.assigned_route %}
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Route Information</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <div class="text-sm text-gray-500 mb-1">Origin</div>
+                    <div class="font-semibold text-gray-800">{{ bus.assigned_route.origin }}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500 mb-1">Destination</div>
+                    <div class="font-semibold text-gray-800">{{ bus.assigned_route.destination }}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500 mb-1">Departure Time</div>
+                    <div class="font-semibold text-gray-800">{{ bus.assigned_route.departure_time }}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-500 mb-1">Ticket Price</div>
+                    <div class="font-semibold text-gray-800">Le {{ bus.assigned_route.price }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Current Progress -->
+        {% if current_progress %}
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Journey Progress</h2>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-700">{{ current_progress.route.origin }}</span>
+                    <span class="text-gray-700">{{ current_progress.route.destination }}</span>
+                </div>
+                
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div class="bg-blue-600 h-3 rounded-full transition-all duration-500" 
+                         style="width: {{ current_progress.progress_percentage }}%"></div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-600">Progress:</span>
+                        <span class="font-semibold">{{ current_progress.progress_percentage|floatformat:1 }}%</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Distance:</span>
+                        <span class="font-semibold">{{ current_progress.distance_covered|floatformat:1 }}/{{ current_progress.total_distance|floatformat:1 }} km</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Status:</span>
+                        <span class="font-semibold text-blue-600">{{ current_progress.get_status_display }}</span>
+                    </div>
+                    {% if current_progress.estimated_arrival_time %}
+                    <div>
+                        <span class="text-gray-600">ETA:</span>
+                        <span class="font-semibold">{{ current_progress.estimated_arrival_time|date:'H:i' }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recent Location History -->
+        {% if recent_locations %}
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Recent Location History</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Speed</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for location in recent_locations %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ location.timestamp|date:'H:i:s' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ location.latitude|floatformat:4 }}, {{ location.longitude|floatformat:4 }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ location.speed|floatformat:1 }} km/h
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if location.is_moving %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Moving
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        Stopped
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

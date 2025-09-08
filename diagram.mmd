@@ -1,0 +1,81 @@
+```mermaid
+%% Flowchart of the System
+flowchart TD
+    start([Start]) -->|Search for Routes| B[Route Management]
+    B -->|Select Route| C[Bus Management]
+    C -->|Choose Seat| D[Booking System]
+    D -->|Make Payment| E{Payment Gateway}
+    E -->|Confirm Payment| F[Booking Confirmation]
+    F -->|Generate Ticket| G[Ticket with QR Code]
+    G -->|Print Ticket| end([End])
+
+%% Data Flow Diagram
+flowchart TD
+    subgraph User Interaction
+        U1[User] -->|Search Routes| U2[Route API]
+        U2 -->|Available Routes| U1
+        U1 -->|Book Ticket| U3[Booking API]
+        U3 -->|Send Payment Details| U4{Payment Gateway}
+        U4 -->|Payment Confirmation| U3
+        U3 -->|Booking Confirmation| U1
+    end
+
+    subgraph Admin Interaction
+        A1[Admin] -->|Manage Routes| A2[Route Management]
+        A1 -->|Manage Buses| A3[Bus Management]
+        A1 -->|View Reports| A4[Analytics]
+    end
+
+    subgraph System
+        U2 -->|Fetch Data| DB[(Database)]
+        U3 -->|Store Booking| DB
+        A2 -->|Update Routes| DB
+        A3 -->|Update Buses| DB
+        A4 -->|Fetch Analytics| DB
+    end
+
+%% ER Diagram
+erDiagram
+    USER {
+        string id PK
+        string name
+        string email
+        string phone
+        string role
+    }
+    ROUTE {
+        string id PK
+        string origin
+        string destination
+        datetime departure_time
+        datetime arrival_time
+        float price
+    }
+    BUS {
+        string id PK
+        string name
+        int capacity
+        string route_id FK
+    }
+    BOOKING {
+        string id PK
+        string user_id FK
+        string route_id FK
+        string bus_id FK
+        string seat_number
+        datetime booking_time
+        string payment_status
+    }
+    PAYMENT {
+        string id PK
+        string booking_id FK
+        float amount
+        string payment_method
+        datetime payment_time
+    }
+
+    USER ||--o{ BOOKING : "makes"
+    ROUTE ||--o{ BOOKING : "has"
+    BUS ||--o{ BOOKING : "assigned to"
+    BOOKING ||--o| PAYMENT : "processed by"
+```
