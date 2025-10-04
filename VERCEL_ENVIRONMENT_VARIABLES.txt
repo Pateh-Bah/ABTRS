@@ -1,0 +1,17 @@
+# Copy and paste these EXACT values into your Vercel project environment variables
+
+# Database Configuration
+DB_HOST=db.ydexeftnucyjnorycrpd.supabase.co
+DB_NAME=postgres
+DB_USER=postgres
+DB_PASSWORD=Abtrs@2025
+DB_PORT=5432
+
+# Django Configuration
+SECRET_KEY=)G2(AjgvT6Rc7@oY(laWNKW&!JuRnl+SMz9J17aiUjf#kcZOBz
+DEBUG=False
+GOOGLE_MAPS_API_KEY=AIzaSyAvP5QtAlj_WcbZ84Yoo2K_I_MGW8guO30
+
+# Supabase Configuration
+SUPABASE_URL=https://ydexeftnucyjnorycrpd.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkZXhlZnRudWN5am5vcnljcnBkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0OTM0NDUsImV4cCI6MjA3NTA2OTQ0NX0.QpzB4MN-7WIhjSSLyR8x9Mguj904HpI40AgokU-RhLE
