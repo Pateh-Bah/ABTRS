@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Admin Dashboard - Waka-Fine Bus{% endblock %}
+{% block title %}Admin Dashboard - {{ site_settings.site_name|default:'Waka-Fine Bus' }}{% endblock %}
 
 {% block content %}
 <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">

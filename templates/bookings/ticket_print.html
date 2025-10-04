@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ticket - {{ booking.pnr_code }} - Waka-Fine Bus</title>
+    <title>Ticket - {{ booking.pnr_code }} - {{ site_settings.site_name|default:'Waka-Fine Bus' }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <style>
@@ -249,7 +249,7 @@
             <div class="flex justify-between items-center">
                 <div>
                     <h2 class="text-sm font-semibold">Digital Ticket</h2>
-                    <p class="text-xs text-green-100">Waka-Fine Bus</p>
+                    <p class="text-xs text-green-100">{{ site_settings.site_name|default:'Waka-Fine Bus' }}</p>
                 </div>
                 <div class="text-right">
                     <p class="text-xs text-green-100">PNR</p>

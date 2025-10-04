@@ -393,11 +393,24 @@ class GPSNavigation {
 
 // Initialize GPS navigation when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Only initialize if Google Maps is available
-    if (typeof google !== 'undefined' && google.maps) {
-        window.gpsNavigation = new GPSNavigation();
+    // Only initialize GPS navigation if we're on a GPS-related page
+    const currentPath = window.location.pathname;
+    const isGpsPage = currentPath.includes('/gps/') || currentPath.includes('/tracking/');
+    
+    if (isGpsPage) {
+        console.log('GPS Navigation: On GPS page, checking Google Maps...');
+        
+        // Check if Google Maps is available
+        if (typeof google !== 'undefined' && google.maps) {
+            console.log('GPS Navigation: Google Maps is available, initializing...');
+            window.gpsNavigation = new GPSNavigation();
+        } else {
+            console.warn('GPS Navigation: Google Maps not available for GPS navigation');
+            console.error('GPS Navigation: Google Maps should be loaded on GPS pages but is not available');
+        }
     } else {
-        console.warn('Google Maps not available for GPS navigation');
+        // Silently skip initialization on non-GPS pages
+        console.debug('GPS Navigation: Not on GPS page, skipping initialization');
     }
 });
 </script>

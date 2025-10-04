@@ -13,12 +13,13 @@ from django.utils import timezone
 import random
 
 # Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wakafine.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wakafine_bus.settings')
 django.setup()
 
 from django.contrib.auth import get_user_model
 from buses.models import Bus
-from routes.models import Route, Terminal
+from routes.models import Route
+from terminals.models import Terminal
 from gps_tracking.models import Driver, BusLocation, SpeedAlert, RouteProgress, GeofenceArea
 
 User = get_user_model()
@@ -77,7 +78,6 @@ def create_test_gps_data():
                 'first_name': driver_data['first_name'],
                 'last_name': driver_data['last_name'],
                 'phone_number': driver_data['phone_number'],
-                'is_driver': True,
             }
         )
         if created:
@@ -89,7 +89,6 @@ def create_test_gps_data():
             user=user,
             defaults={
                 'license_number': driver_data['license_number'],
-                'license_expiry_date': timezone.now().date() + timedelta(days=365),
                 'phone_number': driver_data['phone_number'],
                 'is_active': True,
             }
@@ -153,40 +152,50 @@ def create_test_gps_data():
             
             # Create some speed alerts for testing
             if random.choice([True, False]):
-                SpeedAlert.objects.create(
-                    bus=bus,
-                    driver=driver,
-                    recorded_speed=random.uniform(85, 120),
-                    speed_limit=80,
-                    location_latitude=latitude,
-                    location_longitude=longitude,
-                    severity='medium' if random.choice([True, False]) else 'high',
-                    is_acknowledged=False
-                )
-                print(f"⚠️ Created speed alert for {bus.bus_name}")
+                # Get the latest location for this bus
+                latest_location = BusLocation.objects.filter(bus=bus).last()
+                if latest_location:
+                    SpeedAlert.objects.create(
+                        bus=bus,
+                        driver=driver,
+                        alert_type='overspeed',
+                        recorded_speed=random.uniform(85, 120),
+                        speed_limit=80,
+                        location=latest_location,
+                        message=f"Speed limit exceeded: {random.uniform(85, 120):.1f} km/h (limit: 80 km/h)",
+                        severity='medium' if random.choice([True, False]) else 'high',
+                        is_acknowledged=False
+                    )
+                    print(f"⚠️ Created speed alert for {bus.bus_name}")
     
     # Create geofence areas
     geofences = [
         {
             'name': 'Freetown City Center',
+            'description': 'Main city center area',
             'center_latitude': 8.4657,
             'center_longitude': -13.2317,
-            'radius': 5000,  # 5km radius
-            'geofence_type': 'city_limit'
+            'radius_meters': 5000,  # 5km radius
+            'area_type': 'residential',
+            'speed_limit': 50.0,
         },
         {
             'name': 'Lungi Airport Zone',
+            'description': 'Airport restricted area',
             'center_latitude': 8.6164,
             'center_longitude': -13.1951,
-            'radius': 2000,  # 2km radius
-            'geofence_type': 'restricted'
+            'radius_meters': 2000,  # 2km radius
+            'area_type': 'highway',
+            'speed_limit': 80.0,
         },
         {
             'name': 'Bo City Center',
+            'description': 'Bo city center area',
             'center_latitude': 7.9644,
             'center_longitude': -11.7383,
-            'radius': 3000,  # 3km radius
-            'geofence_type': 'city_limit'
+            'radius_meters': 3000,  # 3km radius
+            'area_type': 'residential',
+            'speed_limit': 40.0,
         }
     ]
     

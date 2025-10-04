@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Google Maps API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        #map {
+            height: 400px;
+            width: 100%;
+            border: 1px solid #ccc;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>Google Maps API Test</h1>
+    <div id="status" class="status info">Testing Google Maps API...</div>
+    <div id="map"></div>
+    
+    <script>
+        let statusDiv = document.getElementById('status');
+        
+        function updateStatus(message, type = 'info') {
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function testGoogleMapsAPI() {
+            updateStatus('Loading Google Maps API...', 'info');
+            
+            // Try to get API key from Django context if available, otherwise use a test key
+            const apiKey = 'AIzaSyAvP5QtAlj_WcbZ84Yoo2K_I_MGW8guO30'; // From Django settings
+            
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
+            script.async = true;
+            script.defer = true;
+            
+            script.onerror = function() {
+                updateStatus(`Failed to load Google Maps API. The API key may be invalid or restricted. Key: ${apiKey}`, 'error');
+            };
+            
+            script.onload = function() {
+                updateStatus('Google Maps API script loaded successfully', 'success');
+            };
+            
+            document.head.appendChild(script);
+        }
+        
+        function initMap() {
+            try {
+                updateStatus('Initializing Google Maps...', 'info');
+                
+                const map = new google.maps.Map(document.getElementById('map'), {
+                    zoom: 10,
+                    center: { lat: 8.460555, lng: -11.779889 } // Freetown, Sierra Leone
+                });
+                
+                // Add a marker
+                new google.maps.Marker({
+                    position: { lat: 8.460555, lng: -11.779889 },
+                    map: map,
+                    title: 'Freetown, Sierra Leone'
+                });
+                
+                updateStatus('✅ Google Maps API is working correctly!', 'success');
+                
+            } catch (error) {
+                updateStatus(`❌ Error initializing map: ${error.message}`, 'error');
+            }
+        }
+        
+        // Start the test
+        testGoogleMapsAPI();
+    </script>
+</body>
+</html>

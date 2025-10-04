@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}GPS Management Dashboard - Waka-Fine Bus{% endblock %}
+{% block title %}GPS Management Dashboard - {{ site_settings.site_name|default:'Waka-Fine Bus' }}{% endblock %}
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>

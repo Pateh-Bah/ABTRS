@@ -1,7 +1,7 @@
 {% extends 'accounts/admin/base_admin.html' %}
 {% load static %}
 
-{% block title %}Ticket - {{ booking.pnr_code }} - Waka-Fine Bus{% endblock %}
+{% block title %}Ticket - {{ booking.pnr_code }} - {{ site_settings.site_name|default:'Waka-Fine Bus' }}{% endblock %}
 {% block page_title %}View Ticket - {{ booking.pnr_code }}{% endblock %}
 
 {% block extra_css %}
@@ -278,10 +278,13 @@
 
 {% block content %}
 <div class="ticket-wrapper max-w-lg mx-auto px-2 py-4">
-    <!-- Print Button -->
-    <div class="text-center mb-3 no-print print-button">
+    <!-- Action Buttons -->
+    <div class="text-center mb-3 no-print print-button flex justify-center space-x-2">
         <button onclick="window.print()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm">
             <i class="fas fa-print mr-1"></i>Print Ticket
+        </button>
+        <button onclick="openTrackingModal('{{ booking.pnr_code }}')" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm">
+            <i class="fas fa-map-marker-alt mr-1"></i>Track Bus
         </button>
     </div>
 
@@ -291,7 +294,7 @@
             <div class="flex justify-between items-center">
                 <div>
                     <h2 class="text-sm font-semibold">Digital Ticket</h2>
-                    <p class="text-xs text-green-100">Waka-Fine Bus</p>
+                    <p class="text-xs text-green-100">{{ site_settings.site_name|default:'Waka-Fine Bus' }}</p>
                 </div>
                 <div class="text-right">
                     <p class="text-xs text-green-100">PNR</p>
@@ -464,6 +467,199 @@
 </noscript>
 
 <script>
+function ensureQRCode() {
+    console.log('🎫 Ticket QR Code generation starting...');
+    
+    // Prepare booking data with comprehensive round trip handling - matches payment_success.html
+    const bookingData = {
+        pnr: '{{ booking.pnr_code|escapejs }}',
+        origin: '{{ booking.route.origin|escapejs }}',
+        destination: '{{ booking.route.destination|escapejs }}',
+        date: '{{ booking.travel_date|date:"M d, Y"|escapejs }}',
+        time: '{{ booking.travel_date|date:"H:i"|escapejs }}',
+        bus: '{{ booking.bus.bus_name|escapejs }}',
+        seat: '{{ booking.seat.seat_number|escapejs }}',
+        passenger: '{{ booking.customer.get_full_name|default:booking.customer.username|escapejs }}',
+        amount: 'Le {{ booking.amount_paid|floatformat:0|escapejs }}',
+        payment: '{{ booking.get_payment_method_display|escapejs }}',
+        status: '{{ booking.get_status_display|escapejs }}',
+        trip_type: '{{ booking.trip_type|escapejs }}',
+        
+        // Round trip handling - only include if actually round trip with data
+        {% if booking.trip_type == "round_trip" %}
+        is_round_trip: true,
+        {% if booking.return_date %}
+        return_date: '{{ booking.return_date|date:"M d, Y"|escapejs }}',
+        return_time: '{{ booking.return_date|date:"H:i"|escapejs }}',
+        {% endif %}
+        {% if booking.return_bus %}
+        return_bus: '{{ booking.return_bus.bus_name|escapejs }}',
+        {% endif %}
+        {% if booking.return_seat %}
+        return_seat: '{{ booking.return_seat.seat_number|escapejs }}',
+        {% endif %}
+        {% else %}
+        is_round_trip: false,
+        {% endif %}
+    };
+    
+    const qrContainer = document.getElementById('qr-code');
+    
+    // Use unified QR generator with current ticket URL - exactly like payment_success.html approach
+    generateWakaFineQRCode(bookingData, qrContainer, {
+        useCurrentUrl: true,
+        showLogs: true,
+        width: 130,
+        height: 130
+    });
+}
+
+// Ensure QR code is generated when page loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ensureQRCode);
+} else {
+    ensureQRCode();
+}
+</script>
+
+<!-- Tracking Modal -->
+<div id="trackingModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 max-w-2xl mx-4 w-full max-h-96 overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-xl font-semibold" id="trackingModalTitle">Track Bus for PNR: <span id="modalPnrCode"></span></h3>
+            <button onclick="closeTrackingModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div id="trackingModalContent">
+            <div id="map" style="height: 300px; width: 100%; border-radius: 0.5rem; margin-bottom: 1rem;"></div>
+            <div id="busTrackingInfo" class="space-y-2 text-sm text-gray-700">
+                <p><strong>Bus:</strong> <span id="trackBusName">N/A</span></p>
+                <p><strong>Current Speed:</strong> <span id="trackBusSpeed">N/A</span> km/h</p>
+                <p><strong>Last Update:</strong> <span id="trackLastUpdate">N/A</span></p>
+            </div>
+            <div id="trackingError" class="text-red-600 mt-3 hidden"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+let trackingMap;
+let trackingMarker;
+let trackingInterval;
+let currentPnrCode = null;
+
+function loadGoogleMapsTracking() {
+    if (typeof google !== 'undefined' && google.maps) {
+        initTrackingMap();
+        return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initTrackingMap';
+    script.async = true;
+    script.defer = true;
+    script.onerror = function() {
+        document.getElementById('trackingError').textContent = 'Failed to load Google Maps API for tracking.';
+        document.getElementById('trackingError').classList.remove('hidden');
+    };
+    document.head.appendChild(script);
+}
+
+function initTrackingMap() {
+    try {
+        trackingMap = new google.maps.Map(document.getElementById('map'), {
+            zoom: 10,
+            center: { lat: 8.460555, lng: -11.779889 }, // Default to Freetown
+            styles: [
+                { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#f5f1e6' }] },
+                { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9c9c9' }] }
+            ]
+        });
+    } catch (error) {
+        document.getElementById('trackingError').textContent = 'Error initializing map: ' + error.message;
+        document.getElementById('trackingError').classList.remove('hidden');
+    }
+}
+
+async function openTrackingModal(pnrCode) {
+    currentPnrCode = pnrCode;
+    document.getElementById('modalPnrCode').textContent = pnrCode;
+    document.getElementById('trackingModal').classList.remove('hidden');
+    document.getElementById('trackingModal').classList.add('flex');
+    document.getElementById('trackingError').classList.add('hidden');
+
+    if (!trackingMap) {
+        loadGoogleMapsTracking();
+    } else {
+        fetchBusLocationForPnr();
+    }
+
+    // Start periodic updates
+    if (trackingInterval) clearInterval(trackingInterval);
+    trackingInterval = setInterval(fetchBusLocationForPnr, 15000); // Update every 15 seconds
+}
+
+function closeTrackingModal() {
+    document.getElementById('trackingModal').classList.add('hidden');
+    document.getElementById('trackingModal').classList.remove('flex');
+    if (trackingInterval) clearInterval(trackingInterval);
+    if (trackingMarker) {
+        trackingMarker.setMap(null); // Clear marker
+        trackingMarker = null;
+    }
+    currentPnrCode = null;
+}
+
+async function fetchBusLocationForPnr() {
+    if (!currentPnrCode) return;
+
+    try {
+        const response = await fetch(`/bookings/track/${currentPnrCode}/`);
+        const data = await response.json();
+
+        if (data.success) {
+            const bus = data;
+            const position = { lat: parseFloat(bus.latitude), lng: parseFloat(bus.longitude) };
+
+            document.getElementById('trackBusName').textContent = bus.bus_name;
+            document.getElementById('trackBusSpeed').textContent = bus.speed.toFixed(1);
+            document.getElementById('trackLastUpdate').textContent = new Date(bus.timestamp).toLocaleTimeString();
+
+            if (trackingMap) {
+                if (trackingMarker) {
+                    trackingMarker.setPosition(position);
+                } else {
+                    trackingMarker = new google.maps.Marker({
+                        position: position,
+                        map: trackingMap,
+                        title: bus.bus_name,
+                        icon: {
+                            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                            scale: 6,
+                            fillColor: '#3B82F6',
+                            fillOpacity: 1,
+                            strokeWeight: 0
+                        }
+                    });
+                }
+                trackingMap.setCenter(position);
+                if (trackingMap.getZoom() < 12) trackingMap.setZoom(12);
+            }
+            document.getElementById('trackingError').classList.add('hidden');
+        } else {
+            document.getElementById('trackingError').textContent = data.error || 'Could not retrieve bus location.';
+            document.getElementById('trackingError').classList.remove('hidden');
+            // Stop tracking if there's an error
+            if (trackingInterval) clearInterval(trackingInterval);
+        }
+    } catch (error) {
+        console.error('Error fetching bus location:', error);
+        document.getElementById('trackingError').textContent = 'Error fetching bus location: ' + error.message;
+        document.getElementById('trackingError').classList.remove('hidden');
+        if (trackingInterval) clearInterval(trackingInterval);
+    }
+}
+
 function ensureQRCode() {
     console.log('🎫 Ticket QR Code generation starting...');
     

@@ -25,6 +25,7 @@ from PIL import Image
 from .models import Booking
 from .forms import BookingForm, BookingSearchForm
 from sierra_leone_validator import SierraLeoneMobileValidator
+from gps_tracking.models import BusLocation
 
 
 class BookingListView(LoginRequiredMixin, ListView):
@@ -651,7 +652,7 @@ class TicketPDFView(LoginRequiredMixin, DetailView):
 
         # Bus icon representation (simple text)
         p.setFont("Helvetica", 14)
-        p.drawCentredText((width) / 2, y_pos - 5, "🚌")
+        p.drawCentredText((width) / 2, y_pos - 5, "\U0001f68c")
 
         y_pos -= 50
 
@@ -775,14 +776,7 @@ class TicketPDFView(LoginRequiredMixin, DetailView):
         y_pos -= 20
 
         # Generate QR code
-        qr_data = f"""WAKA-FINE BUS TICKET
-PNR: {booking.pnr_code}
-Passenger: {passenger_name}
-Route: {booking.route.origin} to {booking.route.destination}
-Date: {booking.travel_date.strftime('%b %d, %Y %H:%M')}
-Bus: {booking.bus.bus_name}
-Seat: {booking.seat.seat_number if booking.seat else 'Not assigned'}
-Amount: Le {booking.amount_paid:.0f}"""
+        qr_data = f"""WAKA-FINE BUS TICKET\nPNR: {booking.pnr_code}\nPassenger: {passenger_name}\nRoute: {booking.route.origin} to {booking.route.destination}\nDate: {booking.travel_date.strftime('%b %d, %Y %H:%M')}\nBus: {booking.bus.bus_name}\nSeat: {booking.seat.seat_number if booking.seat else 'Not assigned'}\nAmount: Le {booking.amount_paid:.0f}"""
 
         try:
             # Create QR code
@@ -884,16 +878,11 @@ class TicketView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         booking = self.get_object()
+        context['google_maps_api_key'] = settings.GOOGLE_MAPS_API_KEY
 
         # --- Server-Side QR Code Generation with Round Trip Support ---
         passenger_name = booking.customer.get_full_name() or booking.customer.username
-        qr_data_string = f"""WAKA-FINE TICKET
-PNR: {booking.pnr_code}
-Passenger: {passenger_name}
-Route: {booking.route.origin} to {booking.route.destination}
-Date: {booking.travel_date.strftime('%b %d, %Y at %H:%M')}
-Bus: {booking.bus.bus_name}
-Seat: {booking.seat.seat_number}"""
+        qr_data_string = f"""WAKA-FINE TICKET\nPNR: {booking.pnr_code}\nPassenger: {passenger_name}\nRoute: {booking.route.origin} to {booking.route.destination}\nDate: {booking.travel_date.strftime('%b %d, %Y at %H:%M')}\nBus: {booking.bus.bus_name}\nSeat: {booking.seat.seat_number}"""
 
         # Add round trip information if it exists
         if booking.trip_type == "round_trip":
@@ -908,9 +897,7 @@ Seat: {booking.seat.seat_number}"""
         else:
             qr_data_string += f"\nTrip Type: One Way"
 
-        qr_data_string += f"""
-Amount: Le {booking.amount_paid}
-Status: {booking.get_status_display()}"""
+        qr_data_string += f"""\nAmount: Le {booking.amount_paid}\nStatus: {booking.get_status_display()}"""
 
         # Generate QR code image
         qr = qrcode.QRCode(
@@ -976,7 +963,7 @@ def get_route_buses_ajax(request):
             return JsonResponse(
                 {
                     "buses": bus_data,
-                    "route_name": f"{route.origin} → {route.destination}",
+                    "route_name": f"{route.origin} \u2192 {route.destination}",
                     "route_price": float(route.price),
                     "departure_time": route.departure_time.strftime("%H:%M"),
                     "arrival_time": route.arrival_time.strftime("%H:%M"),
@@ -1066,3 +1053,27 @@ class BookingDebugView(TemplateView):
             print("DEBUG: No bus_id provided")
 
         return context
+
+def track_booking_by_pnr(request, pnr_code):
+    try:
+        booking = get_object_or_404(Booking, pnr_code=pnr_code)
+        bus = booking.bus
+        latest_location = BusLocation.objects.filter(bus=bus).order_by('-timestamp').first()
+
+        if latest_location:
+            return JsonResponse({
+                'success': True,
+                'pnr_code': booking.pnr_code,
+                'bus_id': bus.id,
+                'bus_name': bus.bus_name,
+                'latitude': latest_location.latitude,
+                'longitude': latest_location.longitude,
+                'speed': latest_location.speed,
+                'timestamp': latest_location.timestamp,
+            })
+        else:
+            return JsonResponse({'success': False, 'error': 'No location data available for this booking.'}, status=404)
+    except Booking.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Booking not found.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

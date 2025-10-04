@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Payment Successful - Waka-Fine Bus{% endblock %}
+{% block title %}Payment Successful - {{ site_settings.site_name|default:'Waka-Fine Bus' }}{% endblock %}
 
 {% block extra_css %}
 <!-- QR Code Library -->
@@ -89,7 +89,7 @@
             <div class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4">
                 <div class="flex justify-between items-center">                    <div>
                         <h2 class="text-lg font-semibold">Digital Ticket</h2>
-                        <p class="text-green-100">Waka-Fine Bus</p>
+                        <p class="text-green-100">{{ site_settings.site_name|default:'Waka-Fine Bus' }}</p>
                     </div>
                     <div class="text-right">
                         <p class="text-sm text-green-100">PNR</p>
@@ -366,7 +366,7 @@ function printTicket() {
 }
 
 function shareOnWhatsApp() {
-    let message = `🎫 *Waka-Fine Bus Ticket*\n\n`;
+    let message = `🎫 *${document.title.replace(/.*-\s*/, '')} Ticket*\n\n`; // Uses dynamic site name from title
     message += `📋 *PNR:* {{ booking.pnr_code }}\n`;
     message += `👤 *Passenger:* {{ booking.customer.get_full_name|default:booking.customer.username }}\n`;
     message += `🚌 *Route:* {{ booking.route.origin }} → {{ booking.route.destination }}\n`;

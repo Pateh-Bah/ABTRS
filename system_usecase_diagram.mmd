@@ -1,0 +1,162 @@
+graph TD
+    %% Actors
+    Customer[👤 Customer]
+    Driver[🚌 Driver] 
+    Admin[👨‍💼 Admin]
+    Staff[👩‍💼 Staff]
+    PaymentSystem[💳 Payment System]
+    
+    %% Customer Use Cases
+    subgraph CustomerUC["Customer Use Cases"]
+        UC01["🔍 Search Routes"]
+        UC02["📋 View Route Details"]
+        UC03["🚌 Select Bus"]
+        UC04["💺 Choose Seats"]
+        UC05["📝 Make Booking"]
+        UC06["💳 Make Payment"]
+        UC07["🎫 Download Ticket"]
+        UC08["📱 Generate QR Code"]
+        UC09["📚 View Booking History"]
+        UC10["❌ Cancel Booking"]
+        UC11["🗺️ Track Bus Live Location"]
+        UC12["👤 Register Account"]
+        UC13["🔐 Login/Logout"]
+        UC14["✏️ Update Profile"]
+    end
+    
+    %% Driver Use Cases
+    subgraph DriverUC["Driver Use Cases"]
+        UC15["🔐 Driver Login"]
+        UC16["🚌 View Assigned Bus"]
+        UC17["📍 Update GPS Location"]
+        UC18["📅 View Schedule"]
+        UC19["✅ Update Trip Status"]
+        UC20["👥 View Passenger List"]
+        UC21["📱 Scan QR Codes"]
+        UC22["🚗 Start/End Trip"]
+    end
+    
+    %% Admin Use Cases
+    subgraph AdminUC["Admin Use Cases"]
+        UC23["👥 Manage Users"]
+        UC24["🚌 Manage Drivers"]
+        UC25["🚐 Manage Buses"]
+        UC26["🛣️ Manage Routes"]
+        UC27["🏢 Manage Terminals"]
+        UC28["📊 View All Bookings"]
+        UC29["📈 Generate Reports"]
+        UC30["⚙️ System Configuration"]
+        UC31["🗺️ Monitor GPS Tracking"]
+        UC32["💰 Handle Refunds"]
+        UC33["🔧 System Maintenance"]
+    end
+    
+    %% Staff Use Cases
+    subgraph StaffUC["Staff Use Cases"]
+        UC34["🎫 Process Walk-in Bookings"]
+        UC35["🖨️ Print Physical Tickets"]
+        UC36["📞 Customer Support"]
+        UC37["✅ Verify QR Codes"]
+        UC38["🚌 Update Bus Status"]
+        UC39["🏢 Manage Terminal Operations"]
+    end
+    
+    %% System Use Cases
+    subgraph SystemUC["System Automated Processes"]
+        UC40["📧 Send Notifications"]
+        UC41["📱 Generate QR Codes"]
+        UC42["💳 Process Payments"]
+        UC43["💺 Update Seat Availability"]
+        UC44["📍 Track Real-time Location"]
+        UC45["📊 Generate Analytics"]
+        UC46["🔄 Currency Conversion"]
+        UC47["💾 Backup Data"]
+    end
+    
+    %% Actor to Use Case Connections
+    Customer --> UC01
+    Customer --> UC02
+    Customer --> UC03
+    Customer --> UC04
+    Customer --> UC05
+    Customer --> UC06
+    Customer --> UC07
+    Customer --> UC08
+    Customer --> UC09
+    Customer --> UC10
+    Customer --> UC11
+    Customer --> UC12
+    Customer --> UC13
+    Customer --> UC14
+    
+    Driver --> UC15
+    Driver --> UC16
+    Driver --> UC17
+    Driver --> UC18
+    Driver --> UC19
+    Driver --> UC20
+    Driver --> UC21
+    Driver --> UC22
+    
+    Admin --> UC23
+    Admin --> UC24
+    Admin --> UC25
+    Admin --> UC26
+    Admin --> UC27
+    Admin --> UC28
+    Admin --> UC29
+    Admin --> UC30
+    Admin --> UC31
+    Admin --> UC32
+    Admin --> UC33
+    
+    Staff --> UC34
+    Staff --> UC35
+    Staff --> UC36
+    Staff --> UC37
+    Staff --> UC38
+    Staff --> UC39
+    
+    PaymentSystem --> UC42
+    PaymentSystem --> UC46
+    
+    %% Include Relationships (dependencies)
+    UC05 -.->|includes| UC06
+    UC05 -.->|includes| UC41
+    UC05 -.->|includes| UC43
+    UC06 -.->|includes| UC42
+    UC07 -.->|includes| UC08
+    UC07 -.->|includes| UC41
+    UC11 -.->|includes| UC44
+    UC17 -.->|includes| UC44
+    UC21 -.->|includes| UC08
+    UC29 -.->|includes| UC45
+    UC34 -.->|includes| UC41
+    UC35 -.->|includes| UC08
+    
+    %% Extend Relationships (optional extensions)
+    UC10 -.->|extends| UC09
+    UC14 -.->|extends| UC13
+    UC19 -.->|extends| UC17
+    UC31 -.->|extends| UC44
+    UC32 -.->|extends| UC28
+    UC46 -.->|extends| UC42
+    
+    %% System Automated Processes
+    UC40 -.->|triggered by| UC05
+    UC43 -.->|triggered by| UC05
+    UC43 -.->|triggered by| UC10
+    UC44 -.->|triggered by| UC17
+    UC45 -.->|triggered by| UC28
+    UC47 -.->|scheduled| UC33
+    
+    %% Styling
+    classDef actor fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#000
+    classDef usecase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px,color:#000
+    classDef system fill:#fff8e1,stroke:#f57c00,stroke-width:2px,color:#000
+    classDef include stroke:#4caf50,stroke-width:2px,stroke-dasharray: 5 5
+    classDef extend stroke:#ff9800,stroke-width:2px,stroke-dasharray: 5 5
+    
+    class Customer,Driver,Admin,Staff,PaymentSystem actor
+    class UC01,UC02,UC03,UC04,UC05,UC06,UC07,UC08,UC09,UC10,UC11,UC12,UC13,UC14,UC15,UC16,UC17,UC18,UC19,UC20,UC21,UC22,UC23,UC24,UC25,UC26,UC27,UC28,UC29,UC30,UC31,UC32,UC33,UC34,UC35,UC36,UC37,UC38,UC39 usecase
+    class UC40,UC41,UC42,UC43,UC44,UC45,UC46,UC47 system

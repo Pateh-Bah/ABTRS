@@ -48,6 +48,13 @@
 
         <!-- Tracking Control Panel -->
         <div class="p-4">
+            <div class="mb-4">
+                {% if bus %}
+                <a id="view-public-map" href="{% url 'gps_tracking:public_map' %}?focus_bus={{ bus.id }}" target="_blank" class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    <i class="fas fa-map-marked-alt mr-2"></i>View My Bus on Public Map
+                </a>
+                {% endif %}
+            </div>
             <!-- Tracking Status -->
             <div id="tracking-status" class="bg-gray-100 rounded-lg p-4 mb-4">
                 <div class="flex items-center justify-between">
@@ -220,6 +227,19 @@
 
                     // Automatically start tracking after permissions are granted
                     this.startTracking();
+
+                    // Send an immediate one-time high accuracy location so bus appears instantly
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                            this.addLogEntry('📡 Initial position acquired', 'success');
+                            this.currentLocation = pos;
+                            this.sendLocationUpdate(pos);
+                        },
+                        (err) => {
+                            this.addLogEntry('⚠️ Initial position failed: ' + err.message, 'warning');
+                        },
+                        { enableHighAccuracy: true, timeout: 8000 }
+                    );
 
                 } catch (error) {
                     this.addLogEntry('❌ Permission error: ' + error.message, 'error');
@@ -406,11 +426,11 @@
                         latitude: this.currentLocation.coords.latitude,
                         longitude: this.currentLocation.coords.longitude,
                         message: 'Emergency alert from driver',
+                        alert_type: 'panic',
                         timestamp: new Date().toISOString()
                     };
                     
-                    // You would implement this endpoint
-                    const response = await fetch('/gps/api/emergency/', {
+                    const response = await fetch(`{% url 'gps_tracking:api_emergency_alert' pk=bus.id %}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

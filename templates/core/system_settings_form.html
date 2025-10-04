@@ -1,0 +1,58 @@
+{% extends 'accounts/admin/base_admin.html' %}
+{% block page_title %}System Settings{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">System Settings</h1>
+    <form method="post" enctype="multipart/form-data" class="space-y-6 bg-white p-6 rounded shadow">
+        {% csrf_token %}
+        <div>
+            <label class="block font-semibold mb-1">Site Name</label>
+            {{ form.site_name }}
+        </div>
+        <div>
+            <label class="block font-semibold mb-1">Logo (optional)</label>
+            {% if site_settings.logo %}
+                <img src="{{ site_settings.logo.url }}" alt="Current Logo" class="h-16 mb-2" />
+            {% endif %}
+            {{ form.logo }}
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+                <label class="block font-semibold mb-1">Primary Color</label>
+                {{ form.primary_color }}
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Header Color</label>
+                {{ form.header_color }}
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Footer Color</label>
+                {{ form.footer_color }}
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Accent Color</label>
+                {{ form.accent_color }}
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Header Text Color</label>
+                {{ form.header_text_color }}
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Top Nav Text Color</label>
+                {{ form.top_nav_text_color }}
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Sidebar Text Color</label>
+                {{ form.sidebar_text_color }}
+            </div>
+            <div>
+                <label class="block font-semibold mb-1">Sidebar Background Color</label>
+                {{ form.sidebar_color }}
+            </div>
+        </div>
+        <div>
+            <button type="submit" class="px-6 py-2 text-white rounded" style="background-color: {{ site_settings.primary_color|default:'#1e40af' }};">Save Settings</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

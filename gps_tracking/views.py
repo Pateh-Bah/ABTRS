@@ -120,15 +120,21 @@ class DriverDashboardView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['google_maps_api_key'] = settings.GOOGLE_MAPS_API_KEY
-        # Assuming the driver is associated with a bus (you may need to adjust this logic)
+        # Get driver profile and assigned bus
         try:
-            driver_bus = Bus.objects.filter(driver=self.request.user).first()
-            if driver_bus:
-                context['bus'] = driver_bus
-                context['current_location'] = BusLocation.objects.filter(bus=driver_bus).first()
-                context['route_progress'] = RouteProgress.objects.filter(bus=driver_bus).first()
-        except:
+            from .models import Driver
+            driver = Driver.objects.get(user=self.request.user, is_active=True)
+            if driver.assigned_bus:
+                context['bus'] = driver.assigned_bus
+                context['driver'] = driver
+                context['current_location'] = BusLocation.objects.filter(bus=driver.assigned_bus).order_by('-timestamp').first()
+                context['route_progress'] = RouteProgress.objects.filter(bus=driver.assigned_bus).order_by('-created_at').first()
+            else:
+                context['bus'] = None
+                context['driver'] = driver
+        except Driver.DoesNotExist:
             context['bus'] = None
+            context['driver'] = None
         return context
 
 

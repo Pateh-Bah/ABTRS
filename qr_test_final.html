@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Test - Waka-Fine Bus</title>
+    <title>QR Code Test - {{ site_settings.site_name|default:'Waka-Fine Bus' }}</title>
     <style>
         @media print {
             /* Force color printing for all browsers */
@@ -169,7 +169,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 QR Code test starting...');
             
-            const qrData = `WAKA-FINE BUS TICKET
+            const qrData = `${document.title.replace(/.*-\s*/, '').toUpperCase()} TICKET
 PNR: WF123456
 Passenger: Test User
 Route: Freetown to Bo

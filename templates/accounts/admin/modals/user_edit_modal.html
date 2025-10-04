@@ -116,6 +116,106 @@
                         Active Account
                     </label>
                 </div>
+            </div>
+
+            <!-- Driver Profile Section -->
+            <div class="md:col-span-2 border-t border-gray-200 pt-4 mt-4">
+                <div class="flex items-center mb-3">
+                    {{ form.is_driver }}
+                    <label for="{{ form.is_driver.id_for_label }}" class="ml-2 block text-sm font-medium text-gray-900">
+                        Has Driver Profile
+                    </label>
+                </div>
+                <p class="text-xs text-gray-500 mb-3">Check the box above to create/manage driver profile for this user with GPS tracking capabilities</p>
+                
+                <div id="driver-fields" class="grid grid-cols-1 md:grid-cols-2 gap-4" {% if not form.is_driver.value %}style="display: none;"{% endif %}>
+                    <!-- License Number -->
+                    <div class="md:col-span-2">
+                        <label for="{{ form.license_number.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            License Number <span class="text-red-500">*</span>
+                        </label>
+                        {{ form.license_number }}
+                        {% if form.license_number.errors %}
+                            <div class="mt-1">
+                                {% for error in form.license_number.errors %}
+                                    <p class="text-sm text-red-600">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Driver Phone -->
+                    <div>
+                        <label for="{{ form.driver_phone.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Driver Phone
+                        </label>
+                        {{ form.driver_phone }}
+                        {% if form.driver_phone.errors %}
+                            <div class="mt-1">
+                                {% for error in form.driver_phone.errors %}
+                                    <p class="text-sm text-red-600">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <p class="text-xs text-gray-500 mt-1">Leave blank to use main phone number</p>
+                    </div>
+
+                    <!-- Assigned Bus -->
+                    <div>
+                        <label for="{{ form.assigned_bus.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Assigned Bus
+                        </label>
+                        {{ form.assigned_bus }}
+                        {% if form.assigned_bus.errors %}
+                            <div class="mt-1">
+                                {% for error in form.assigned_bus.errors %}
+                                    <p class="text-sm text-red-600">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Emergency Contact Name -->
+                    <div>
+                        <label for="{{ form.emergency_contact.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Emergency Contact Name
+                        </label>
+                        {{ form.emergency_contact }}
+                        {% if form.emergency_contact.errors %}
+                            <div class="mt-1">
+                                {% for error in form.emergency_contact.errors %}
+                                    <p class="text-sm text-red-600">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Emergency Contact Phone -->
+                    <div>
+                        <label for="{{ form.emergency_contact_phone.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                            Emergency Contact Phone
+                        </label>
+                        {{ form.emergency_contact_phone }}
+                        {% if form.emergency_contact_phone.errors %}
+                            <div class="mt-1">
+                                {% for error in form.emergency_contact_phone.errors %}
+                                    <p class="text-sm text-red-600">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Driver Active Status -->
+                    <div class="md:col-span-2">
+                        <div class="flex items-center">
+                            {{ form.driver_active }}
+                            <label for="{{ form.driver_active.id_for_label }}" class="ml-2 block text-sm text-gray-700">
+                                Driver Profile Active
+                            </label>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Uncheck to deactivate driver without deleting profile</p>
+                    </div>
+                </div>
             </div>            <!-- Password Section -->
             <div class="md:col-span-2 border-t border-gray-200 pt-4 mt-4">
                 <h4 class="text-sm font-medium text-gray-900 mb-3">Password Settings</h4>
@@ -164,3 +264,26 @@
             <i class="fas fa-save mr-2"></i>Update User
         </button>    </div>
 </form>
+
+<script>
+// Show/hide driver fields based on checkbox state
+document.addEventListener('DOMContentLoaded', function() {
+    const isDriverCheckbox = document.getElementById('{{ form.is_driver.id_for_label }}');
+    const driverFields = document.getElementById('driver-fields');
+    
+    if (isDriverCheckbox && driverFields) {
+        function toggleDriverFields() {
+            if (isDriverCheckbox.checked) {
+                driverFields.style.display = 'grid';
+            } else {
+                driverFields.style.display = 'none';
+            }
+        }
+        
+        // Initial state - already set in template with conditional display
+        
+        // Listen for changes
+        isDriverCheckbox.addEventListener('change', toggleDriverFields);
+    }
+});
+</script>

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Book Your Trip - Waka-Fine Bus{% endblock %}
+{% block title %}Book Your Trip - {{ site_settings.site_name|default:'Waka-Fine Bus' }}{% endblock %}
 
 {% block extra_head %}
 <!-- Debug information -->

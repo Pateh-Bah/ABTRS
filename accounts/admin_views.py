@@ -18,7 +18,13 @@ from django.utils.decorators import method_decorator
 from django.template.loader import render_to_string
 
 from .models import User
-from .forms import AdminUserCreateForm, AdminUserEditForm
+from .forms import (
+    AdminUserCreateForm, 
+    AdminUserEditForm,
+    AdminUserCreateFormWithDriver,
+    AdminUserEditFormWithDriver
+)
+from gps_tracking.models import Driver
 from buses.models import Bus
 from routes.models import Route
 from bookings.models import Booking
@@ -73,7 +79,7 @@ class ManageUsersView(AdminRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        queryset = User.objects.all().order_by("-date_joined")
+        queryset = User.objects.select_related('driver_profile', 'driver_profile__assigned_bus').all().order_by("-date_joined")
         search = self.request.GET.get("search")
         if search:
             queryset = queryset.filter(
@@ -433,7 +439,7 @@ class UserCreateModalView(AdminRequiredMixin, TemplateView):
     """AJAX view for user creation modal"""
 
     def get(self, request, *args, **kwargs):
-        form = AdminUserCreateForm(current_user=request.user)
+        form = AdminUserCreateFormWithDriver(current_user=request.user)
         context = {"form": form}
 
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -445,19 +451,30 @@ class UserCreateModalView(AdminRequiredMixin, TemplateView):
         return JsonResponse({"error": "Invalid request"}, status=400)
 
     def post(self, request, *args, **kwargs):
-        form = AdminUserCreateForm(request.POST, current_user=request.user)
+        form = AdminUserCreateFormWithDriver(request.POST, current_user=request.user)
 
         if form.is_valid():
             user = form.save()
-            messages.success(
-                request, f'User "{user.username}" has been created successfully.'
-            )
+            success_message = f'User "{user.username}" has been created successfully.'
+            
+            # Add driver information to success message if driver profile was created
+            if form.cleaned_data.get('is_driver'):
+                try:
+                    driver = Driver.objects.get(user=user)
+                    if driver.assigned_bus:
+                        success_message += f' Driver assigned to bus {driver.assigned_bus.bus_number}.'
+                    else:
+                        success_message += ' Driver profile created.'
+                except Driver.DoesNotExist:
+                    pass
+            
+            messages.success(request, success_message)
 
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return JsonResponse(
                     {
                         "success": True,
-                        "message": f'User "{user.username}" has been created successfully.',
+                        "message": success_message,
                         "redirect_url": reverse_lazy("accounts:admin_manage_users"),
                     }
                 )
@@ -478,7 +495,7 @@ class UserEditModalView(AdminRequiredMixin, TemplateView):
     def get(self, request, *args, **kwargs):
         user_id = kwargs.get("user_id")
         user = get_object_or_404(User, id=user_id)
-        form = AdminUserEditForm(instance=user)
+        form = AdminUserEditFormWithDriver(instance=user)
 
         context = {
             "form": form,
@@ -496,19 +513,30 @@ class UserEditModalView(AdminRequiredMixin, TemplateView):
     def post(self, request, *args, **kwargs):
         user_id = kwargs.get("user_id")
         user = get_object_or_404(User, id=user_id)
-        form = AdminUserEditForm(request.POST, instance=user)
+        form = AdminUserEditFormWithDriver(request.POST, instance=user)
 
         if form.is_valid():
             user = form.save()
-            messages.success(
-                request, f'User "{user.username}" has been updated successfully.'
-            )
+            success_message = f'User "{user.username}" has been updated successfully.'
+            
+            # Add driver information to success message if relevant
+            if form.cleaned_data.get('is_driver'):
+                try:
+                    driver = Driver.objects.get(user=user)
+                    if driver.assigned_bus:
+                        success_message += f' Driver assigned to bus {driver.assigned_bus.bus_number}.'
+                    else:
+                        success_message += ' Driver profile updated.'
+                except Driver.DoesNotExist:
+                    pass
+            
+            messages.success(request, success_message)
 
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return JsonResponse(
                     {
                         "success": True,
-                        "message": f'User "{user.username}" has been updated successfully.',
+                        "message": success_message,
                         "redirect_url": reverse_lazy("accounts:admin_manage_users"),
                     }
                 )

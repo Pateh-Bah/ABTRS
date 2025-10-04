@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Welcome to Waka-Fine Bus{% endblock %}
+{% block title %}Welcome to {{ site_settings.site_name|default:'Waka-Fine Bus' }}{% endblock %}
 
 {% block content %}
 <!-- Hero Section -->
@@ -9,7 +9,7 @@
     <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <div class="text-center animate-fade-in">
             <h1 class="text-4xl md:text-6xl font-bold mb-6">
-                Welcome to <span class="text-accent">Waka-Fine</span> Bus
+                Welcome to <span class="text-accent">{{ site_settings.site_name|default:'Waka-Fine Bus' }}</span>
             </h1>
             <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
                 Your comfortable and reliable travel partner across Freetown, Sierra Leone
@@ -97,7 +97,7 @@
 <section class="py-16 bg-gray-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center mb-12">
-            <h2 class="text-3xl font-bold text-gray-800 mb-4">Why Choose Waka-Fine?</h2>
+            <h2 class="text-3xl font-bold text-gray-800 mb-4">Why Choose {{ site_settings.site_name|default:'Waka-Fine Bus' }}?</h2>
             <p class="text-gray-600">Experience the best in comfort, safety, and reliability</p>
         </div>
         
@@ -200,7 +200,7 @@
 <section class="py-16 bg-gradient-to-r from-primary to-secondary text-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <h2 class="text-3xl font-bold mb-4">Ready to Travel?</h2>
-        <p class="text-xl mb-8 max-w-2xl mx-auto">Book your seat now and enjoy a comfortable journey with Waka-Fine Bus</p>
+    <p class="text-xl mb-8 max-w-2xl mx-auto">Book your seat now and enjoy a comfortable journey with {{ site_settings.site_name|default:'Waka-Fine Bus' }}</p>
         <a href="{% url 'routes:search' %}" class="bg-accent text-gray-800 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-yellow-300 transition-all duration-300 transform hover:scale-105 inline-block">
             <i class="fas fa-ticket-alt mr-2"></i>Book Now
         </a>    </div>

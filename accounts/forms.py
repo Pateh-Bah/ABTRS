@@ -1,6 +1,8 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, PasswordChangeForm
 from .models import User
+from gps_tracking.models import Driver
+from buses.models import Bus
 
 
 class CustomUserCreationForm(UserCreationForm):
@@ -271,4 +273,228 @@ class AdminUserEditForm(forms.ModelForm):
             user.set_password(self.cleaned_data["new_password"])
         if commit:
             user.save()
+        return user
+
+
+class AdminUserCreateFormWithDriver(AdminUserCreateForm):
+    """Enhanced form for admin to create users with optional driver profile"""
+    
+    # Driver profile fields
+    is_driver = forms.BooleanField(
+        required=False,
+        label="Create Driver Profile",
+        help_text="Check to create a driver profile for this user"
+    )
+    license_number = forms.CharField(
+        max_length=50,
+        required=False,
+        label="License Number",
+        help_text="Driver's license number"
+    )
+    driver_phone = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Driver Phone (if different)",
+        help_text="Driver's phone number if different from main phone"
+    )
+    emergency_contact_name = forms.CharField(
+        max_length=100,
+        required=False,
+        label="Emergency Contact Name"
+    )
+    emergency_contact_phone = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Emergency Contact Phone"
+    )
+    assigned_bus = forms.ModelChoiceField(
+        queryset=Bus.objects.filter(is_active=True),
+        required=False,
+        empty_label="Select a bus (optional)",
+        label="Assigned Bus"
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Add styling to driver fields
+        driver_fields = ['license_number', 'driver_phone', 'emergency_contact', 
+                        'emergency_contact_phone']
+        for field_name in driver_fields:
+            self.fields[field_name].widget.attrs["class"] = (
+                "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            )
+        
+        self.fields["is_driver"].widget.attrs["class"] = (
+            "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+        )
+        self.fields["assigned_bus"].widget.attrs["class"] = (
+            "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        )
+        
+        # Add placeholders
+        self.fields["license_number"].widget.attrs["placeholder"] = "e.g., DL123456789"
+        self.fields["driver_phone"].widget.attrs["placeholder"] = "+1234567890"
+        self.fields["emergency_contact"].widget.attrs["placeholder"] = "Emergency contact name"
+        self.fields["emergency_contact_phone"].widget.attrs["placeholder"] = "Emergency contact phone"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        is_driver = cleaned_data.get('is_driver')
+        license_number = cleaned_data.get('license_number')
+        
+        # If creating driver profile, license number is required
+        if is_driver and not license_number:
+            raise forms.ValidationError(
+                "License number is required when creating a driver profile."
+            )
+        
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit)
+        
+        # Create driver profile if requested
+        if self.cleaned_data.get('is_driver'):
+            driver_data = {
+                'license_number': self.cleaned_data.get('license_number'),
+                'phone_number': self.cleaned_data.get('driver_phone') or user.phone_number,
+                'emergency_contact': self.cleaned_data.get('emergency_contact'),
+                'emergency_contact_phone': self.cleaned_data.get('emergency_contact_phone'),
+                'assigned_bus': self.cleaned_data.get('assigned_bus'),
+                'is_active': True
+            }
+            Driver.objects.create(user=user, **driver_data)
+        
+        return user
+
+
+class AdminUserEditFormWithDriver(AdminUserEditForm):
+    """Enhanced form for admin to edit users with driver profile management"""
+    
+    # Driver profile fields
+    is_driver = forms.BooleanField(
+        required=False,
+        label="Has Driver Profile",
+        help_text="Check to create/manage driver profile for this user"
+    )
+    license_number = forms.CharField(
+        max_length=50,
+        required=False,
+        label="License Number",
+        help_text="Driver's license number"
+    )
+    driver_phone = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Driver Phone (if different)",
+        help_text="Driver's phone number if different from main phone"
+    )
+    emergency_contact_name = forms.CharField(
+        max_length=100,
+        required=False,
+        label="Emergency Contact Name"
+    )
+    emergency_contact_phone = forms.CharField(
+        max_length=20,
+        required=False,
+        label="Emergency Contact Phone"
+    )
+    assigned_bus = forms.ModelChoiceField(
+        queryset=Bus.objects.filter(is_active=True),
+        required=False,
+        empty_label="Select a bus (optional)",
+        label="Assigned Bus"
+    )
+    driver_active = forms.BooleanField(
+        required=False,
+        label="Driver Active",
+        help_text="Whether the driver profile is active"
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Pre-populate driver fields if user has driver profile
+        if self.instance.pk:
+            try:
+                driver = Driver.objects.get(user=self.instance)
+                self.fields['is_driver'].initial = True
+                self.fields['license_number'].initial = driver.license_number
+                self.fields['driver_phone'].initial = driver.phone_number
+                self.fields['emergency_contact'].initial = driver.emergency_contact
+                self.fields['emergency_contact_phone'].initial = driver.emergency_contact_phone
+                self.fields['assigned_bus'].initial = driver.assigned_bus
+                self.fields['driver_active'].initial = driver.is_active
+            except Driver.DoesNotExist:
+                self.fields['is_driver'].initial = False
+                self.fields['driver_active'].initial = True
+        
+        # Add styling to driver fields
+        driver_fields = ['license_number', 'driver_phone', 'emergency_contact', 
+                        'emergency_contact_phone']
+        for field_name in driver_fields:
+            self.fields[field_name].widget.attrs["class"] = (
+                "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            )
+        
+        for checkbox_field in ['is_driver', 'driver_active']:
+            self.fields[checkbox_field].widget.attrs["class"] = (
+                "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            )
+        
+        self.fields["assigned_bus"].widget.attrs["class"] = (
+            "w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        )
+        
+        # Add placeholders
+        self.fields["license_number"].widget.attrs["placeholder"] = "e.g., DL123456789"
+        self.fields["driver_phone"].widget.attrs["placeholder"] = "+1234567890"
+        self.fields["emergency_contact"].widget.attrs["placeholder"] = "Emergency contact name"
+        self.fields["emergency_contact_phone"].widget.attrs["placeholder"] = "Emergency contact phone"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        is_driver = cleaned_data.get('is_driver')
+        license_number = cleaned_data.get('license_number')
+        
+        # If creating/updating driver profile, license number is required
+        if is_driver and not license_number:
+            raise forms.ValidationError(
+                "License number is required when maintaining a driver profile."
+            )
+        
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit)
+        
+        # Handle driver profile
+        try:
+            driver = Driver.objects.get(user=user)
+            if self.cleaned_data.get('is_driver'):
+                # Update existing driver profile
+                driver.license_number = self.cleaned_data.get('license_number')
+                driver.phone_number = self.cleaned_data.get('driver_phone') or user.phone_number
+                driver.emergency_contact = self.cleaned_data.get('emergency_contact')
+                driver.emergency_contact_phone = self.cleaned_data.get('emergency_contact_phone')
+                driver.assigned_bus = self.cleaned_data.get('assigned_bus')
+                driver.is_active = self.cleaned_data.get('driver_active', True)
+                driver.save()
+            else:
+                # Remove driver profile if unchecked
+                driver.delete()
+        except Driver.DoesNotExist:
+            if self.cleaned_data.get('is_driver'):
+                # Create new driver profile
+                driver_data = {
+                    'license_number': self.cleaned_data.get('license_number'),
+                    'phone_number': self.cleaned_data.get('driver_phone') or user.phone_number,
+                    'emergency_contact': self.cleaned_data.get('emergency_contact'),
+                    'emergency_contact_phone': self.cleaned_data.get('emergency_contact_phone'),
+                    'assigned_bus': self.cleaned_data.get('assigned_bus'),
+                    'is_active': self.cleaned_data.get('driver_active', True)
+                }
+                Driver.objects.create(user=user, **driver_data)
+        
         return user

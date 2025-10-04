@@ -1,0 +1,207 @@
+erDiagram
+    USERS {
+        int id PK
+        string username
+        string email
+        string password_hash
+        string role
+        string phone_number
+        string first_name
+        string last_name
+        boolean is_active
+        datetime created_at
+        datetime updated_at
+    }
+
+    DRIVERS {
+        int id PK
+        int user_id FK
+        string license_number
+        date license_expiry_date
+        string phone_number
+        int assigned_bus_id FK
+        boolean is_active
+        date hire_date
+        datetime created_at
+    }
+
+    TERMINALS {
+        int id PK
+        string name
+        string terminal_type
+        string location
+        string city
+        time operating_hours_start
+        time operating_hours_end
+        decimal latitude
+        decimal longitude
+        boolean is_active
+        datetime created_at
+    }
+
+    ROUTES {
+        int id PK
+        string name
+        string origin
+        string destination
+        int origin_terminal_id FK
+        int destination_terminal_id FK
+        decimal distance_km
+        int estimated_duration_minutes
+        decimal price
+        time departure_time
+        time arrival_time
+        boolean is_active
+        datetime created_at
+    }
+
+    BUSES {
+        int id PK
+        string bus_number
+        string bus_name
+        string bus_type
+        int seat_capacity
+        int assigned_route_id FK
+        string license_plate
+        string manufacturer
+        string model
+        int year
+        decimal current_latitude
+        decimal current_longitude
+        boolean is_active
+        datetime created_at
+    }
+
+    SEATS {
+        int id PK
+        int bus_id FK
+        string seat_number
+        string seat_type
+        boolean is_available
+        datetime created_at
+    }
+
+    BOOKINGS {
+        int id PK
+        string pnr_code
+        int customer_id FK
+        int route_id FK
+        int bus_id FK
+        int seat_id FK
+        date travel_date
+        time travel_time
+        string trip_type
+        date return_date
+        time return_time
+        string payment_method
+        decimal amount_paid
+        string currency
+        string booking_status
+        string payment_status
+        string qr_code_path
+        text special_requests
+        datetime created_at
+        datetime updated_at
+    }
+
+    BUS_LOCATIONS {
+        int id PK
+        int bus_id FK
+        decimal latitude
+        decimal longitude
+        decimal speed_kmh
+        decimal heading
+        boolean is_moving
+        decimal accuracy_meters
+        datetime recorded_at
+    }
+
+    PAYMENTS {
+        int id PK
+        int booking_id FK
+        decimal amount
+        string currency
+        string payment_method
+        string transaction_id
+        string payment_status
+        datetime payment_date
+        int processed_by FK
+        text notes
+    }
+
+    CURRENCY_RATES {
+        int id PK
+        string from_currency
+        string to_currency
+        decimal exchange_rate
+        date effective_date
+        datetime created_at
+    }
+
+    NOTIFICATIONS {
+        int id PK
+        int user_id FK
+        string title
+        text message
+        string notification_type
+        boolean is_read
+        datetime sent_at
+        datetime read_at
+    }
+
+    SYSTEM_SETTINGS {
+        int id PK
+        string setting_key
+        text setting_value
+        string setting_type
+        text description
+        int updated_by FK
+        datetime updated_at
+    }
+
+    AUDIT_LOG {
+        int id PK
+        int user_id FK
+        string action
+        string table_name
+        int record_id
+        json old_values
+        json new_values
+        string ip_address
+        text user_agent
+        datetime created_at
+    }
+
+    %% Relationships
+    USERS ||--o{ BOOKINGS : places
+    USERS ||--o{ NOTIFICATIONS : receives
+    USERS ||--o{ PAYMENTS : makes
+    USERS ||--o{ AUDIT_LOG : triggers
+    USERS ||--o| DRIVERS : has_profile
+    USERS ||--o{ SYSTEM_SETTINGS : updates
+
+    DRIVERS }o--|| BUSES : assigned_to
+
+    TERMINALS ||--o{ ROUTES : origin_for
+    TERMINALS ||--o{ ROUTES : destination_for
+
+    ROUTES ||--o{ BOOKINGS : has
+    ROUTES ||--o{ BUSES : served_by
+
+    BUSES ||--o{ SEATS : contains
+    BUSES ||--o{ BOOKINGS : used_in
+    BUSES ||--o{ BUS_LOCATIONS : tracked_by
+
+    SEATS ||--o{ BOOKINGS : allocated_to
+
+    BOOKINGS ||--o{ PAYMENTS : paid_by
+
+    PAYMENTS }o--|| USERS : processed_by
+
+    CURRENCY_RATES ||--o{ PAYMENTS : applied_to
+
+    SYSTEM_SETTINGS ||--o{ AUDIT_LOG : changes_logged
+
+    NOTIFICATIONS ||--o{ AUDIT_LOG : events_logged
+
+    AUDIT_LOG }o--|| USERS : actor

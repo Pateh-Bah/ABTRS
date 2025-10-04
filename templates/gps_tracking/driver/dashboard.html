@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Driver Dashboard - Waka-Fine Bus{% endblock %}
+{% block title %}Driver Dashboard - {{ site_settings.site_name|default:'Waka-Fine Bus' }}{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -126,6 +126,14 @@
                 <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div class="flex items-center">
                         <i class="fas fa-map-marker-alt text-green-600 mr-3"></i>
+                        <span class="text-gray-700">Last Update</span>
+                    </div>
+                    <span class="text-lg font-semibold text-blue-600" id="lastUpdateTime">--:--:--</span>
+                </div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4">
+                <div class="flex items-center justify-between">
+                    <div>
                         <span class="text-gray-700">GPS Accuracy</span>
                     </div>
                     <span class="text-lg font-semibold text-green-600" id="gpsAccuracy">-- meters</span>
@@ -269,6 +277,19 @@ document.addEventListener('DOMContentLoaded', function() {
     updateTime();
     setInterval(updateTime, 1000);
     checkGPSStatus();
+    
+    // Auto-start GPS tracking for drivers
+    {% if driver and bus %}
+    console.log('Driver detected with assigned bus. Auto-starting GPS tracking...');
+    // Show notification to user about auto-start
+    showNotification('🗺️ GPS tracking started automatically for your safety and passenger convenience.', 'info');
+    // Start GPS automatically after a brief delay
+    setTimeout(function() {
+        enableGPS();
+    }, 2000);
+    {% else %}
+    console.log('No driver profile or bus assignment found.');
+    {% endif %}
 });
 
 // GPS Functions
@@ -365,10 +386,35 @@ function sendLocationUpdate(coords) {
         speed: coords.speed ? coords.speed * 3.6 : 0, // Convert m/s to km/h
         heading: coords.heading,
         accuracy: coords.accuracy,
+        altitude: coords.altitude,
         device_id: 'driver_app_' + Date.now()
     };
     
-    {% if bus %}
+    {% if driver %}
+    // Use driver-specific API endpoint
+    fetch('{% url "gps_tracking:api_driver_update_location" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Driver location updated successfully');
+            // Update last update time display
+            document.getElementById('lastUpdateTime').textContent = new Date().toLocaleTimeString();
+        } else {
+            console.error('Driver location update failed:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error sending driver location:', error);
+    });
+    {% elif bus %}
+    // Fallback to bus-specific API endpoint
     fetch('{% url "gps_tracking:api_update_location" bus.pk %}', {
         method: 'POST',
         headers: {
@@ -380,14 +426,16 @@ function sendLocationUpdate(coords) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            console.log('Location updated successfully');
+            console.log('Bus location updated successfully');
         } else {
-            console.error('Location update failed:', data.error);
+            console.error('Bus location update failed:', data.error);
         }
     })
     .catch(error => {
-        console.error('Error sending location:', error);
+        console.error('Error sending bus location:', error);
     });
+    {% else %}
+    console.warn('No driver profile or bus assignment found for location updates');
     {% endif %}
 }
 
@@ -416,6 +464,38 @@ function checkGPSStatus() {
     } else {
         document.getElementById('gpsStatusText').textContent = 'GPS not supported by this browser';
     }
+}
+
+// Notification function
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 max-w-sm p-4 rounded-lg shadow-lg z-50 transition-all duration-300 ${
+        type === 'success' ? 'bg-green-100 border border-green-400 text-green-800' :
+        type === 'error' ? 'bg-red-100 border border-red-400 text-red-800' :
+        type === 'warning' ? 'bg-yellow-100 border border-yellow-400 text-yellow-800' :
+        'bg-blue-100 border border-blue-400 text-blue-800'
+    }`;
+    
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <div class="flex-1">
+                ${message}
+            </div>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-lg font-bold opacity-70 hover:opacity-100">
+                ×
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification && notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
 }
 
 // Emergency Functions

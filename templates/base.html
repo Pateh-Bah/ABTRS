@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Waka-Fine Bus{% endblock %}</title>
+    <title>{% block title %}{{ site_settings.site_name|default:"Waka-Fine Bus" }}{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,9 +12,9 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: '#1e40af',
+                        primary: '{{ site_settings.primary_color|default:"#1e40af" }}',
                         secondary: '#3b82f6',
-                        accent: '#fbbf24',
+                        accent: '{{ site_settings.accent_color|default:"#fbbf24" }}',
                         success: '#10b981',
                         warning: '#f59e0b',
                         danger: '#ef4444',
@@ -48,29 +48,35 @@
     </style>
     {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+<body class="min-h-screen" style="--primary-color: {{ site_settings.primary_color|default:'#1e40af' }}; --accent-color: {{ site_settings.accent_color|default:'#fbbf24' }};">
     <!-- Navigation -->
-    <nav class="bg-white/80 backdrop-blur-md shadow-lg sticky top-0 z-50 border-b border-blue-100">
+    <nav class="backdrop-blur-md shadow-lg sticky top-0 z-50 border-b" style="background-color: {{ site_settings.header_color|default:'#ffffff' }}; border-color: {{ site_settings.primary_color|default:'#1e40af' }}33;">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
                     <div class="flex-shrink-0 flex items-center">
-                        <i class="fas fa-bus text-3xl text-primary mr-2"></i>
-                        <span class="text-2xl font-bold text-gray-800">Waka-Fine</span>
-                        <span class="text-sm text-gray-500 ml-2">Bus</span>
+                        {% if site_settings.logo %}
+                            <img src="{{ site_settings.logo.url }}" alt="Logo" class="h-10 w-auto mr-2" />
+                        {% else %}
+                            <i class="fas fa-bus text-3xl" style="color: {{ site_settings.primary_color|default:'#1e40af' }};"></i>
+                        {% endif %}
+                        <span class="text-2xl font-bold text-gray-800">{{ site_settings.site_name|default:'Waka-Fine Bus' }}</span>
                     </div>
                     <div class="hidden md:ml-10 md:flex md:space-x-8">
-                        <a href="{% url 'home' %}" class="text-gray-700 hover:text-primary px-3 py-2 text-sm font-medium transition-colors duration-200">
+                        <a href="{% url 'home' %}" class="hover:text-primary px-3 py-2 text-sm font-medium transition-colors duration-200" style="color: {{ site_settings.top_nav_text_color|default:'#1f2937' }};">
                             <i class="fas fa-home mr-1"></i>Home
                         </a>
-                        <a href="{% url 'routes:search' %}" class="text-gray-700 hover:text-primary px-3 py-2 text-sm font-medium transition-colors duration-200">
+                        <a href="{% url 'routes:search' %}" class="hover:text-primary px-3 py-2 text-sm font-medium transition-colors duration-200" style="color: {{ site_settings.top_nav_text_color|default:'#1f2937' }};">
                             <i class="fas fa-route mr-1"></i>Routes
                         </a>
+                        <a href="{% url 'gps_tracking:public_map' %}" class="hover:text-primary px-3 py-2 text-sm font-medium transition-colors duration-200" style="color: {{ site_settings.top_nav_text_color|default:'#1f2937' }};">
+                            <i class="fas fa-map-marker-alt mr-1"></i>Track Buses
+                        </a>
                         {% if user.is_authenticated %}
-                            <a href="{% url 'bookings:list' %}" class="text-gray-700 hover:text-primary px-3 py-2 text-sm font-medium transition-colors duration-200">
+                            <a href="{% url 'bookings:list' %}" class="hover:text-primary px-3 py-2 text-sm font-medium transition-colors duration-200" style="color: {{ site_settings.top_nav_text_color|default:'#1f2937' }};">
                                 <i class="fas fa-ticket-alt mr-1"></i>My Bookings
                             </a>
-                            <a href="{% url 'accounts:dashboard' %}" class="text-gray-700 hover:text-primary px-3 py-2 text-sm font-medium transition-colors duration-200">
+                            <a href="{% url 'accounts:dashboard' %}" class="hover:text-primary px-3 py-2 text-sm font-medium transition-colors duration-200" style="color: {{ site_settings.top_nav_text_color|default:'#1f2937' }};">
                                 <i class="fas fa-tachometer-alt mr-1"></i>Dashboard
                             </a>
                         {% endif %}
@@ -80,7 +86,7 @@
                 <div class="flex items-center space-x-4">
                     {% if user.is_authenticated %}
                         <div class="relative" x-data="{ open: false }">
-                            <button @click="open = !open" class="flex items-center text-sm text-gray-700 hover:text-primary focus:outline-none transition-colors duration-200">
+                            <button @click="open = !open" class="flex items-center text-sm hover:text-primary focus:outline-none transition-colors duration-200" style="color: {{ site_settings.top_nav_text_color|default:'#1f2937' }};">
                                 <i class="fas fa-user-circle text-xl mr-2"></i>
                                 <span class="hidden md:block">{{ user.get_full_name|default:user.username }}</span>
                                 <i class="fas fa-chevron-down ml-1 text-xs"></i>
@@ -106,10 +112,10 @@
                             </div>
                         </div>
                     {% else %}
-                        <a href="{% url 'accounts:login' %}" class="text-gray-700 hover:text-primary px-3 py-2 text-sm font-medium transition-colors duration-200">
+                        <a href="{% url 'accounts:login' %}" class="hover:text-primary px-3 py-2 text-sm font-medium transition-colors duration-200" style="color: {{ site_settings.top_nav_text_color|default:'#1f2937' }};">
                             <i class="fas fa-sign-in-alt mr-1"></i>Login
                         </a>
-                        <a href="{% url 'accounts:register' %}" class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors duration-200">
+                        <a href="{% url 'accounts:register' %}" class="text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200" style="background-color: {{ site_settings.primary_color|default:'#1e40af' }};">
                             <i class="fas fa-user-plus mr-1"></i>Register
                         </a>
                     {% endif %}
@@ -146,13 +152,17 @@
     {% include 'includes/gps_navigation.html' %}
 
     <!-- Footer -->
-    <footer class="bg-gray-800 text-white mt-20">
+    <footer class="text-white mt-20" style="background-color: {{ site_settings.footer_color|default:'#1f2937' }};">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div class="col-span-1 md:col-span-2">
                     <div class="flex items-center mb-4">
-                        <i class="fas fa-bus text-2xl text-accent mr-2"></i>
-                        <span class="text-xl font-bold">Waka-Fine Bus</span>
+                        {% if site_settings.logo %}
+                            <img src="{{ site_settings.logo.url }}" alt="Logo" class="h-8 w-auto mr-2" />
+                        {% else %}
+                            <i class="fas fa-bus text-2xl" style="color: {{ site_settings.accent_color|default:'#fbbf24' }};"></i>
+                        {% endif %}
+                        <span class="text-xl font-bold">{{ site_settings.site_name|default:'Waka-Fine Bus' }}</span>
                     </div>
                     <p class="text-gray-300 mb-4">Your trusted partner for comfortable and safe travel across Freetown, Sierra Leone.</p>
                     <div class="flex space-x-4">
@@ -186,7 +196,7 @@
             </div>
             <hr class="border-gray-700 my-8">
             <div class="text-center text-gray-300">
-                <p>&copy; 2025 Waka-Fine Bus. All rights reserved.</p>
+                <p>&copy; 2025 {{ site_settings.site_name|default:'Waka-Fine Bus' }}. All rights reserved.</p>
             </div>
         </div>
     </footer>

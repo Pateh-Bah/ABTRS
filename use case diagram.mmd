@@ -1,0 +1,157 @@
+```mermaid
+graph LR
+    %% ============== ACTORS (outside system boundary) ==============
+    Customer((Customer)):::actor
+    Driver((Driver)):::actor
+    Staff((Staff)):::actor
+    Admin((Admin)):::actor
+    PaymentSys((Payment System)):::external
+
+    %% ============== SYSTEM BOUNDARY ===============================
+    subgraph System["Automated Bus Ticketing & Reservation System"]
+        %% Group: Customer Use Cases
+        UC_Search([Search Routes])
+        UC_ViewRoute([View Route Details])
+        UC_SelectBus([Select Bus])
+        UC_ChooseSeat([Choose Seats])
+        UC_Book([Make Booking])
+        UC_Pay([Make Payment])
+        UC_Ticket([Download / View Ticket])
+        UC_QR([Generate QR Code])
+        UC_BookingHist([View Booking History])
+        UC_Cancel([Cancel Booking])
+        UC_Track([Track Bus Live])
+        UC_Register([Register Account])
+        UC_Login([Login / Logout])
+        UC_Profile([Update Profile])
+
+        %% Group: Driver Use Cases
+        UC_DriverLogin([Driver Login])
+        UC_ViewAssignedBus([View Assigned Bus])
+        UC_UpdateGPS([Update GPS Location])
+        UC_ViewSchedule([View Schedule])
+        UC_TripStatus([Update Trip Status])
+        UC_PassengerList([View Passenger List])
+        UC_ScanQR([Scan Passenger QR])
+        UC_StartEndTrip([Start / End Trip])
+
+        %% Group: Staff / Admin Ops
+        UC_WalkIn([Process Walk-in Booking])
+        UC_PrintTicket([Print Physical Ticket])
+        UC_VerifyQR([Verify QR Code])
+        UC_CustSupport([Customer Support])
+        UC_UpdateBusStatus([Update Bus Status])
+        UC_TerminalOps([Manage Terminal Operations])
+
+        %% Admin Management Use Cases
+        UC_ManageUsers([Manage Users])
+        UC_ManageDrivers([Manage Drivers])
+        UC_ManageBuses([Manage Buses])
+        UC_ManageRoutes([Manage Routes])
+        UC_ManageTerminals([Manage Terminals])
+        UC_ViewBookings([View All Bookings])
+        UC_Reports([Generate Reports])
+        UC_Settings([System Configuration])
+        UC_MonitorGPS([Monitor GPS Tracking])
+        UC_Refunds([Handle Refunds])
+        UC_Maintenance([System Maintenance])
+
+        %% Automated / System Use Cases
+        UC_SendNotif([Send Notifications])
+        UC_GenQR([Generate QR Codes])
+        UC_ProcessPay([Process Payments])
+        UC_UpdateSeats([Update Seat Availability])
+        UC_LiveTracking([Track Real-time Location])
+        UC_Analytics([Generate Analytics])
+        UC_Currency([Currency Conversion])
+        UC_Backup([Backup Data])
+    end
+
+    %% ============== ACTOR -> USE CASE ASSOCIATIONS =================
+    %% Customer
+    Customer --> UC_Search
+    Customer --> UC_ViewRoute
+    Customer --> UC_SelectBus
+    Customer --> UC_ChooseSeat
+    Customer --> UC_Book
+    Customer --> UC_Pay
+    Customer --> UC_Ticket
+    Customer --> UC_QR
+    Customer --> UC_BookingHist
+    Customer --> UC_Cancel
+    Customer --> UC_Track
+    Customer --> UC_Register
+    Customer --> UC_Login
+    Customer --> UC_Profile
+
+    %% Driver
+    Driver --> UC_DriverLogin
+    Driver --> UC_ViewAssignedBus
+    Driver --> UC_UpdateGPS
+    Driver --> UC_ViewSchedule
+    Driver --> UC_TripStatus
+    Driver --> UC_PassengerList
+    Driver --> UC_ScanQR
+    Driver --> UC_StartEndTrip
+
+    %% Staff
+    Staff --> UC_WalkIn
+    Staff --> UC_PrintTicket
+    Staff --> UC_VerifyQR
+    Staff --> UC_CustSupport
+    Staff --> UC_UpdateBusStatus
+    Staff --> UC_TerminalOps
+
+    %% Admin
+    Admin --> UC_ManageUsers
+    Admin --> UC_ManageDrivers
+    Admin --> UC_ManageBuses
+    Admin --> UC_ManageRoutes
+    Admin --> UC_ManageTerminals
+    Admin --> UC_ViewBookings
+    Admin --> UC_Reports
+    Admin --> UC_Settings
+    Admin --> UC_MonitorGPS
+    Admin --> UC_Refunds
+    Admin --> UC_Maintenance
+
+    %% External System
+    PaymentSys --> UC_ProcessPay
+    PaymentSys --> UC_Currency
+
+    %% ============== INCLUDE (dashed arrows) ========================
+    UC_Book -.-> UC_Pay
+    UC_Book -.-> UC_GenQR
+    UC_Book -.-> UC_UpdateSeats
+    UC_Pay  -.-> UC_ProcessPay
+    UC_Ticket -.-> UC_QR
+    UC_Track -.-> UC_LiveTracking
+    UC_UpdateGPS -.-> UC_LiveTracking
+    UC_Reports -.-> UC_Analytics
+    UC_WalkIn -.-> UC_GenQR
+
+    %% ============== EXTEND (dotted with label) =====================
+    UC_Cancel -.->|extends| UC_BookingHist
+    UC_Profile -.->|extends| UC_Login
+    UC_TripStatus -.->|extends| UC_UpdateGPS
+    UC_MonitorGPS -.->|extends| UC_LiveTracking
+    UC_Refunds -.->|extends| UC_ViewBookings
+    UC_Currency -.->|extends| UC_ProcessPay
+
+    %% ============== SYSTEM TRIGGERS (optional semantic) ===========
+    UC_Book -.-> UC_SendNotif
+    UC_Cancel -.-> UC_SendNotif
+    UC_StartEndTrip -.-> UC_LiveTracking
+    UC_Maintenance -.-> UC_Backup
+
+    %% ============== STYLING =======================================
+    classDef actor fill:#eef7ff,stroke:#1a73e8,stroke-width:2px
+    classDef external fill:#fff4e0,stroke:#f57c00,stroke-width:2px
+    classDef usecase fill:#f3e5f5,stroke:#7b1fa2,stroke-width:1px
+    classDef systemBoundary stroke:#2e7d32,stroke-width:3px
+
+    class Customer,Driver,Staff,Admin actor
+    class PaymentSys external
+    class UC_Search,UC_ViewRoute,UC_SelectBus,UC_ChooseSeat,UC_Book,UC_Pay,UC_Ticket,UC_QR,UC_BookingHist,UC_Cancel,UC_Track,UC_Register,UC_Login,UC_Profile,UC_DriverLogin,UC_ViewAssignedBus,UC_UpdateGPS,UC_ViewSchedule,UC_TripStatus,UC_PassengerList,UC_ScanQR,UC_StartEndTrip,UC_WalkIn,UC_PrintTicket,UC_VerifyQR,UC_CustSupport,UC_UpdateBusStatus,UC_TerminalOps,UC_ManageUsers,UC_ManageDrivers,UC_ManageBuses,UC_ManageRoutes,UC_ManageTerminals,UC_ViewBookings,UC_Reports,UC_Settings,UC_MonitorGPS,UC_Refunds,UC_Maintenance,UC_SendNotif,UC_GenQR,UC_ProcessPay,UC_UpdateSeats,UC_LiveTracking,UC_Analytics,UC_Currency,UC_Backup usecase
+    class System systemBoundary
+```
