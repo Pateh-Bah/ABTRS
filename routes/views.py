@@ -39,24 +39,46 @@ class RouteSearchView(ListView):
     context_object_name = "routes"
 
     def get_queryset(self):
-        queryset = Route.objects.filter(is_active=True)
+        try:
+            queryset = Route.objects.filter(is_active=True)
 
-        origin = self.request.GET.get("origin")
-        destination = self.request.GET.get("destination")
-        travel_date = self.request.GET.get("travel_date")
+            origin = self.request.GET.get("origin")
+            destination = self.request.GET.get("destination")
+            travel_date = self.request.GET.get("travel_date")
 
-        if origin:
-            queryset = queryset.filter(origin=origin)
-        if destination:
-            queryset = queryset.filter(destination=destination)
+            if origin:
+                queryset = queryset.filter(origin=origin)
+            if destination:
+                queryset = queryset.filter(destination=destination)
 
-        return queryset.order_by("departure_time")
+            # Add explicit date filtering
+            if travel_date:
+                from django.utils.timezone import datetime, make_aware
+                try:
+                    travel_date_obj = make_aware(datetime.strptime(travel_date, '%Y-%m-%d'))
+                    # Only show routes that are active and available on the selected date
+                    queryset = queryset.filter(
+                        is_active=True,
+                        buses__schedules__date=travel_date_obj.date(),
+                        buses__is_active=True
+                    ).distinct()
+                except ValueError:
+                    # Invalid date format, return empty queryset
+                    return Route.objects.none()
+
+            return queryset.order_by("departure_time")
+        except Exception:
+            # Return empty queryset on any error to avoid 500
+            return Route.objects.none()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from django.utils import timezone
+        
         context["origin"] = self.request.GET.get("origin", "")
         context["destination"] = self.request.GET.get("destination", "")
         context["travel_date"] = self.request.GET.get("travel_date", "")
+        context["today"] = timezone.now().date()
         return context
 
 

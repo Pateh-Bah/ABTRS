@@ -1,14 +1,14 @@
 # 🚀 Complete Vercel Setup Guide
 
 ## ✅ What I've Done For You
-
+****
 1. ✅ **Generated Secret Key**: `)G2(AjgvT6Rc7@oY(laWNKW&!JuRnl+SMz9J17aiUjf#kcZOBz`
 2. ✅ **Created Vercel Configuration Files**
 3. ✅ **Updated Requirements for Production**
 4. ✅ **Pushed All Changes to GitHub**
 
 ## 🎯 Next Steps: Deploy to Vercel
-
+****
 ### Step 1: Go to Vercel
 1. Open your browser and go to **[vercel.com](https://vercel.com)**
 2. **Sign up/Login** with your GitHub account
