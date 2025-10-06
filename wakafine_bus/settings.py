@@ -80,13 +80,37 @@ WSGI_APPLICATION = "wakafine_bus.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# Prefer Postgres (Supabase) when environment variables are provided. Otherwise
+# fall back to a local SQLite database for development.
+DB_ENGINE = os.environ.get("DB_ENGINE", "")
+DB_NAME = os.environ.get("DB_NAME")
+DB_USER = os.environ.get("DB_USER")
+DB_PASSWORD = os.environ.get("DB_PASSWORD")
+DB_HOST = os.environ.get("DB_HOST")
+DB_PORT = os.environ.get("DB_PORT")
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if DB_NAME and DB_USER and DB_HOST:
+    # Configure Postgres (used for Supabase deployment)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": DB_NAME,
+            "USER": DB_USER,
+            "PASSWORD": DB_PASSWORD or "",
+            "HOST": DB_HOST,
+            "PORT": DB_PORT or "5432",
+            # Ensure SSL is used when connecting to hosted Postgres like Supabase
+            "OPTIONS": {"sslmode": os.environ.get("DB_SSLMODE", "require")},
+        }
     }
-}
+else:
+    # Fallback to SQLite for local development (works out-of-the-box)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation

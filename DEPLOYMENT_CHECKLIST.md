@@ -60,6 +60,23 @@ git push origin main
 ### 3. Run Migrations on Vercel
 Visit: `https://your-vercel-url.vercel.app/api/migrate`
 
+## 🔎 Quick Local Supabase Connection Test
+Before deploying, you can test the connection locally by setting the environment variables and running Django's check/migrate commands.
+
+Windows PowerShell (temporary environment variables for the session):
+```powershell
+$env:DB_HOST = 'db.ydexeftnucyjnorycrpd.supabase.co'
+$env:DB_NAME = 'postgres'
+$env:DB_USER = 'postgres'
+$env:DB_PASSWORD = 'Abtrs@2025'  # replace with your secret
+$env:DB_PORT = '5432'
+python -m pip install -r requirements.txt
+python manage.py migrate --noinput
+python manage.py check
+```
+
+If migrations succeed and `python manage.py check` returns no errors, your Supabase connection is configured correctly.
+
 ## ✅ Testing Checklist
 
 ### 1. Basic Functionality
