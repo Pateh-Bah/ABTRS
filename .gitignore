@@ -1,0 +1,13 @@
+# Local environment variables
+.env.local
+
+# Django database file
+db.sqlite3
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Static and media files
+staticfiles/
+media/
