@@ -8,11 +8,27 @@
   ],
   "routes": [
     {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/media/(.*)",
+      "dest": "/media/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "api/index.py"
     }
   ],
   "env": {
-    "DJANGO_SETTINGS_MODULE": "wakafine_bus.settings_production"
+    "DJANGO_SETTINGS_MODULE": "wakafine_bus.settings_production",
+    "PYTHON_VERSION": "3.9",
+    "DB_ENGINE": "django.db.backends.postgresql",
+    "DB_NAME": "postgres",
+    "DB_USER": "postgres",
+    "DB_HOST": "db.ydexeftnucyjnorycrpd.supabase.co",
+    "DB_PORT": "5432",
+    "DEBUG": "0",
+    "ALLOWED_HOSTS": ".vercel.app,localhost,127.0.0.1"
   }
 }
