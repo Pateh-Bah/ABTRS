@@ -49,9 +49,16 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 
-# Use WhiteNoise for serving static files
-MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Use WhiteNoise for serving static files when available
+try:
+    import whitenoise  # noqa: F401
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+except Exception:
+    # If whitenoise is not installed in the runtime, skip configuration so
+    # application startup won't fail. Vercel can still serve static files
+    # via the routes/static configuration.
+    pass
 
 # Media files configuration
 MEDIA_URL = '/media/'

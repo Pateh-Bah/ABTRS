@@ -16,8 +16,13 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-from dotenv import load_dotenv
-load_dotenv(BASE_DIR / '.env.local')
+try:
+    from dotenv import load_dotenv
+    # Load local .env file when present (non-fatal if python-dotenv is missing)
+    load_dotenv(BASE_DIR / '.env.local')
+except Exception:
+    # Continue without .env when python-dotenv isn't installed or file missing
+    pass
 
 
 # Quick-start development settings - unsuitable for production

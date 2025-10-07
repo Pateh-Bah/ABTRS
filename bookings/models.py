@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-import qrcode
+import logging
 from io import BytesIO
 from django.core.files import File
 import uuid
@@ -163,6 +163,15 @@ class Booking(models.Model):
             f"Date: {qr_data['date']}\\n"
             f"Passenger: {qr_data['passenger']}"
         )
+
+        # Import qrcode lazily and handle missing dependency gracefully so
+        # application startup doesn't fail if the package isn't available
+        try:
+            import qrcode
+        except Exception:
+            logger = logging.getLogger(__name__)
+            logger.warning("qrcode package not installed; skipping QR generation")
+            return
 
         qr = qrcode.QRCode(version=1, box_size=10, border=5)
         qr.add_data(qr_string)
