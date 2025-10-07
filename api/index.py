@@ -156,5 +156,7 @@ def handler(event, context):
         return {'statusCode': 500, 'body': 'Internal server error', 'headers': {'Content-Type': 'text/plain'}}
 
 
-# For local development convenience
-app = wsgi_app
+# For local development convenience (do not expose as 'app' to avoid confusing
+# serverless runtime detection which may mistakenly call issubclass on an
+# exported instance). Use `local_app` when running a local WSGI server.
+local_app = wsgi_app
