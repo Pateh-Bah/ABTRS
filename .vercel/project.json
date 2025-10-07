@@ -1,0 +1,12 @@
+{
+  "projectId": "abtrs",
+  "orgId": "your-org-id",
+  "settings": {
+    "framework": "other",
+    "devCommand": null,
+    "buildCommand": null,
+    "outputDirectory": null,
+    "installCommand": "pip install -r api/requirements.txt",
+    "commandForIgnoringBuildStep": null
+  }
+}
