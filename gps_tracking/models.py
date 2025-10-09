@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from buses.models import Bus
 from routes.models import Route
 
@@ -15,6 +16,15 @@ class Driver(models.Model):
     emergency_contact = models.CharField(max_length=100, blank=True)
     emergency_contact_phone = models.CharField(max_length=20, blank=True)
     is_active = models.BooleanField(default=True)
+    
+    def clean(self):
+        """Validate that only staff members can be drivers"""
+        if self.user and self.user.role == 'customer':
+            raise ValidationError('Customers cannot be assigned as drivers. Only staff members can be drivers.')
+    
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
     
     # Current assignment
     assigned_bus = models.OneToOneField(

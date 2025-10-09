@@ -139,6 +139,7 @@ class BusCreateView(AdminRequiredMixin, CreateView):
         "bus_type",
         "seat_capacity",
         "assigned_route",
+        "assigned_driver",
         "is_active",
     ]
     success_url = reverse_lazy("accounts:admin_manage_buses")
@@ -157,6 +158,7 @@ class BusUpdateView(AdminRequiredMixin, UpdateView):
         "bus_type",
         "seat_capacity",
         "assigned_route",
+        "assigned_driver",
         "is_active",
     ]
     success_url = reverse_lazy("accounts:admin_manage_buses")

@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from routes.models import Route
 
 
@@ -46,16 +47,26 @@ class Bus(models.Model):
         help_text="GPS device or tracking device ID"
     )
     
-    # Driver assignment (moved from gps_tracking to avoid circular imports)
+    # Driver assignment - ForeignKey to Driver model
+    assigned_driver = models.ForeignKey(
+        'gps_tracking.Driver',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_buses',
+        help_text="Currently assigned driver for this bus"
+    )
+    
+    # Legacy fields for backward compatibility (will be removed in future)
     current_driver_name = models.CharField(
         max_length=100, 
         blank=True,
-        help_text="Name of currently assigned driver"
+        help_text="Name of currently assigned driver (deprecated - use assigned_driver)"
     )
     current_driver_phone = models.CharField(
         max_length=20, 
         blank=True,
-        help_text="Phone number of current driver"
+        help_text="Phone number of current driver (deprecated - use assigned_driver)"
     )
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -64,6 +75,20 @@ class Bus(models.Model):
     def __str__(self):
         return f"{self.bus_name} ({self.bus_number})"
 
+    @property
+    def driver_name(self):
+        """Get the name of the assigned driver"""
+        if self.assigned_driver:
+            return f"{self.assigned_driver.user.first_name} {self.assigned_driver.user.last_name}".strip()
+        return self.current_driver_name or "No driver assigned"
+    
+    @property
+    def driver_phone(self):
+        """Get the phone number of the assigned driver"""
+        if self.assigned_driver:
+            return self.assigned_driver.phone_number
+        return self.current_driver_phone or "N/A"
+    
     @property
     def available_seats(self):
         from bookings.models import Booking
