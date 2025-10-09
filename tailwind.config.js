@@ -9,9 +9,9 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: 'var(--primary-color)',
-        secondary: '#3b82f6',
-        accent: 'var(--accent-color)',
+        primary: '#3b82f6', // Blue-600
+        secondary: '#6b7280', // Gray-500
+        accent: '#10b981', // Emerald-500
         success: '#10b981',
         warning: '#f59e0b',
         danger: '#ef4444',
