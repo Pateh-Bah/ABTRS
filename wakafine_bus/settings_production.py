@@ -33,12 +33,14 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME', 'postgres'),
         'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'Abtrs@2025'),
+        'HOST': os.environ.get('DB_HOST', 'db.ydexeftnucyjnorycrpd.supabase.co'),
         'PORT': os.environ.get('DB_PORT', '5432'),
         'OPTIONS': {
             'sslmode': 'require',
+            'connect_timeout': 10,
         },
+        'CONN_MAX_AGE': 0,  # Disable persistent connections for serverless
     }
 }
 

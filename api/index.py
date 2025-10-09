@@ -23,20 +23,34 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wakafine_bus.settings_productio
 # We'll capture startup errors and expose them in the handler so Vercel doesn't crash silently.
 startup_exception = None
 wsgi_app = None
-try:
-    import django
-    from django.core.wsgi import get_wsgi_application
-    from django.core.management import execute_from_command_line
 
-    django.setup()
-    wsgi_app = get_wsgi_application()
-    logger.info('Django setup completed successfully')
-except Exception as e:
-    # Record startup problem; handler will return a helpful message instead of crashing
-    startup_exception = e
-    logger.error(f'Startup error: {str(e)}')
-    import traceback
-    logger.error(traceback.format_exc())
+def initialize_django():
+    """Initialize Django application"""
+    global wsgi_app, startup_exception
+    try:
+        import django
+        from django.core.wsgi import get_wsgi_application
+        from django.core.management import execute_from_command_line
+        from django.conf import settings
+
+        # Check if Django is already configured
+        if not settings.configured:
+            django.setup()
+        
+        wsgi_app = get_wsgi_application()
+        logger.info('Django setup completed successfully')
+        startup_exception = None
+        return True
+    except Exception as e:
+        # Record startup problem; handler will return a helpful message instead of crashing
+        startup_exception = e
+        logger.error(f'Startup error: {str(e)}')
+        import traceback
+        logger.error(traceback.format_exc())
+        return False
+
+# Initialize Django on module load
+initialize_django()
 
 
 def _build_environ(event):
@@ -79,15 +93,26 @@ def _build_environ(event):
 def handler(event, context):
     # Top-level handler called by Vercel
     try:
-        # If startup failed, return the recorded startup exception to aid debugging
+        # Try to reinitialize Django if startup failed
         if startup_exception is not None:
-            msg = f'Application startup failed: {startup_exception!s}'
-            logger.error(msg)
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.info('Attempting to reinitialize Django...')
+            if not initialize_django():
+                msg = f'Application startup failed: {startup_exception!s}'
+                logger.error(msg)
+                import traceback
+                logger.error(traceback.format_exc())
+                return {
+                    'statusCode': 500,
+                    'body': msg,
+                    'headers': {'Content-Type': 'text/plain'}
+                }
+
+        # Ensure wsgi_app is available
+        if wsgi_app is None:
+            logger.error('WSGI application not available')
             return {
                 'statusCode': 500,
-                'body': msg,
+                'body': 'WSGI application not available',
                 'headers': {'Content-Type': 'text/plain'}
             }
 

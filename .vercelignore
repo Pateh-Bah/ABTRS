@@ -19,20 +19,29 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
 venv/
 env/
 ENV/
+env.bak/
+venv.bak/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # Django
@@ -40,36 +49,66 @@ Thumbs.db
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-
-# Media files (will be handled by external storage)
 media/
 
-# Test files
-test_*.py
-*_test.py
-debug_*.py
-quick_*.py
-verify_*.py
-check_*.py
-create_*.py
-final_*.py
-simple_*.py
-comprehensive_*.py
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+.coverage
+.pytest_cache/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
 
 # Documentation
+docs/
 *.md
-*.mmd
+!README.md
 
-# Scripts
-scripts/
-*.sh
+# Development files
+test_*.py
+debug_*.py
+create_*.py
+check_*.py
+verify_*.py
+quick_*.py
+simple_*.py
+final_*.py
+comprehensive_*.py
+system_*.py
+implementation_*.py
+gps_*.py
+qr_*.py
+payment_*.py
+currency_*.py
+seed_*.py
+export_*.py
+dump_*.py
+migrate_*.py
+setup_*.py
+get_*.py
+link_*.py
+run_*.py
+shell_*.py
+update_*.py
+sql_*.py
 
-# Node modules
-node_modules/
-package-lock.json
-package.json
-tailwind.config.js
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
 
-# Git
-.git/
-.gitignore
+# Logs
+logs/
+*.log
+
+# Static files (will be served by Vercel)
+staticfiles/
