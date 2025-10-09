@@ -473,6 +473,23 @@ label {
     padding-top: 1.5rem;
 }
 
+/* Additional spacing utilities */
+.space-x-3 > * + * {
+    margin-left: 0.75rem;
+}
+
+.space-x-4 > * + * {
+    margin-left: 1rem;
+}
+
+.gap-3 {
+    gap: 0.75rem;
+}
+
+.gap-4 {
+    gap: 1rem;
+}
+
 /* Primary color variable support */
 :root {
     --primary-color: #3b82f6;
@@ -497,4 +514,117 @@ label {
 
 .hover\:text-primary:hover {
     color: var(--primary-color);
+}
+
+/* Icon spacing and sizing improvements */
+.icon-spacing {
+    margin-right: 0.75rem; /* 12px instead of 8px */
+}
+
+.icon-spacing-left {
+    margin-left: 0.75rem; /* 12px instead of 8px */
+}
+
+/* Standardized icon sizes */
+.icon-sm {
+    width: 1rem; /* 16px */
+    height: 1rem;
+    font-size: 0.875rem; /* 14px */
+}
+
+.icon-md {
+    width: 1.25rem; /* 20px */
+    height: 1.25rem;
+    font-size: 1rem; /* 16px */
+}
+
+.icon-lg {
+    width: 1.5rem; /* 24px */
+    height: 1.5rem;
+    font-size: 1.125rem; /* 18px */
+}
+
+.icon-xl {
+    width: 2rem; /* 32px */
+    height: 2rem;
+    font-size: 1.5rem; /* 24px */
+}
+
+/* Button icon spacing */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem; /* 12px gap between icon and text */
+}
+
+.btn-icon i {
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    font-size: 0.875rem;
+}
+
+/* Form icon spacing */
+.form-icon {
+    margin-right: 0.75rem;
+    width: 1rem;
+    height: 1rem;
+    font-size: 0.875rem;
+}
+
+/* Navigation icon spacing */
+.nav-icon {
+    margin-right: 0.75rem;
+    width: 1.125rem;
+    height: 1.125rem;
+    font-size: 1rem;
+}
+
+/* Card icon spacing */
+.card-icon {
+    margin-right: 0.75rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1.125rem;
+}
+
+/* Header icon spacing */
+.header-icon {
+    margin-right: 0.75rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 1.25rem;
+}
+
+/* Footer icon spacing */
+.footer-icon {
+    margin-right: 0.75rem;
+    width: 1.125rem;
+    height: 1.125rem;
+    font-size: 1rem;
+}
+
+/* Consistent spacing for all icons with text */
+.fas, .far, .fab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Override existing mr-2 classes for better spacing */
+.mr-2 {
+    margin-right: 0.75rem !important; /* 12px instead of 8px */
+}
+
+.ml-2 {
+    margin-left: 0.75rem !important; /* 12px instead of 8px */
+}
+
+/* Better spacing for specific common patterns */
+i + span, i + text, i + .text {
+    margin-left: 0.75rem;
+}
+
+span + i, text + i, .text + i {
+    margin-left: 0.75rem;
 }
