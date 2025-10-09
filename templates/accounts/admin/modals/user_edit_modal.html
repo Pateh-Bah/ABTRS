@@ -177,13 +177,13 @@
 
                     <!-- Emergency Contact Name -->
                     <div>
-                        <label for="{{ form.emergency_contact.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        <label for="{{ form.emergency_contact_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
                             Emergency Contact Name
                         </label>
-                        {{ form.emergency_contact }}
-                        {% if form.emergency_contact.errors %}
+                        {{ form.emergency_contact_name }}
+                        {% if form.emergency_contact_name.errors %}
                             <div class="mt-1">
-                                {% for error in form.emergency_contact.errors %}
+                                {% for error in form.emergency_contact_name.errors %}
                                     <p class="text-sm text-red-600">{{ error }}</p>
                                 {% endfor %}
                             </div>

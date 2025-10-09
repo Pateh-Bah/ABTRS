@@ -318,7 +318,7 @@ class AdminUserCreateFormWithDriver(AdminUserCreateForm):
         super().__init__(*args, **kwargs)
         
         # Add styling to driver fields
-        driver_fields = ['license_number', 'driver_phone', 'emergency_contact', 
+        driver_fields = ['license_number', 'driver_phone', 'emergency_contact_name', 
                         'emergency_contact_phone']
         for field_name in driver_fields:
             self.fields[field_name].widget.attrs["class"] = (
@@ -335,7 +335,7 @@ class AdminUserCreateFormWithDriver(AdminUserCreateForm):
         # Add placeholders
         self.fields["license_number"].widget.attrs["placeholder"] = "e.g., DL123456789"
         self.fields["driver_phone"].widget.attrs["placeholder"] = "+1234567890"
-        self.fields["emergency_contact"].widget.attrs["placeholder"] = "Emergency contact name"
+        self.fields["emergency_contact_name"].widget.attrs["placeholder"] = "Emergency contact name"
         self.fields["emergency_contact_phone"].widget.attrs["placeholder"] = "Emergency contact phone"
 
     def clean(self):
@@ -359,7 +359,7 @@ class AdminUserCreateFormWithDriver(AdminUserCreateForm):
             driver_data = {
                 'license_number': self.cleaned_data.get('license_number'),
                 'phone_number': self.cleaned_data.get('driver_phone') or user.phone_number,
-                'emergency_contact': self.cleaned_data.get('emergency_contact'),
+                'emergency_contact': self.cleaned_data.get('emergency_contact_name'),
                 'emergency_contact_phone': self.cleaned_data.get('emergency_contact_phone'),
                 'assigned_bus': self.cleaned_data.get('assigned_bus'),
                 'is_active': True
@@ -422,7 +422,7 @@ class AdminUserEditFormWithDriver(AdminUserEditForm):
                 self.fields['is_driver'].initial = True
                 self.fields['license_number'].initial = driver.license_number
                 self.fields['driver_phone'].initial = driver.phone_number
-                self.fields['emergency_contact'].initial = driver.emergency_contact
+                self.fields['emergency_contact_name'].initial = driver.emergency_contact
                 self.fields['emergency_contact_phone'].initial = driver.emergency_contact_phone
                 self.fields['assigned_bus'].initial = driver.assigned_bus
                 self.fields['driver_active'].initial = driver.is_active
@@ -431,7 +431,7 @@ class AdminUserEditFormWithDriver(AdminUserEditForm):
                 self.fields['driver_active'].initial = True
         
         # Add styling to driver fields
-        driver_fields = ['license_number', 'driver_phone', 'emergency_contact', 
+        driver_fields = ['license_number', 'driver_phone', 'emergency_contact_name', 
                         'emergency_contact_phone']
         for field_name in driver_fields:
             self.fields[field_name].widget.attrs["class"] = (
@@ -450,7 +450,7 @@ class AdminUserEditFormWithDriver(AdminUserEditForm):
         # Add placeholders
         self.fields["license_number"].widget.attrs["placeholder"] = "e.g., DL123456789"
         self.fields["driver_phone"].widget.attrs["placeholder"] = "+1234567890"
-        self.fields["emergency_contact"].widget.attrs["placeholder"] = "Emergency contact name"
+        self.fields["emergency_contact_name"].widget.attrs["placeholder"] = "Emergency contact name"
         self.fields["emergency_contact_phone"].widget.attrs["placeholder"] = "Emergency contact phone"
 
     def clean(self):

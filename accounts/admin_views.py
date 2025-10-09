@@ -435,33 +435,20 @@ class UserDetailModalView(AdminRequiredMixin, TemplateView):
         return JsonResponse({"error": "Invalid request"}, status=400)
 
 
-from django.http import HttpResponse
-
 class UserCreateModalView(AdminRequiredMixin, TemplateView):
     """AJAX view for user creation modal"""
 
     def get(self, request, *args, **kwargs):
-        try:
-            form = AdminUserCreateFormWithDriver(current_user=request.user)
-            context = {"form": form}
+        form = AdminUserCreateFormWithDriver(current_user=request.user)
+        context = {"form": form}
 
-            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                html = render_to_string(
-                    "accounts/admin/modals/user_create_modal.html", context, request=request
-                )
-                return JsonResponse({"html": html})
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            html = render_to_string(
+                "accounts/admin/modals/user_create_modal.html", context, request=request
+            )
+            return JsonResponse({"html": html})
 
-            return JsonResponse({"error": "Invalid request"}, status=400)
-        except Exception as e:
-            import traceback
-            logger = __import__('logging').getLogger(__name__)
-            logger.error('Error rendering user create modal: %s', e)
-            logger.error(traceback.format_exc())
-            # Return JSON error so the frontend can handle it gracefully
-            return JsonResponse({
-                "error": "Could not load the create user form.",
-                "details": str(e),
-            }, status=500)
+        return JsonResponse({"error": "Invalid request"}, status=400)
 
     def post(self, request, *args, **kwargs):
         form = AdminUserCreateFormWithDriver(request.POST, current_user=request.user)
@@ -571,20 +558,7 @@ class UserDeleteModalView(AdminRequiredMixin, TemplateView):
     """AJAX view for user deletion confirmation modal"""
 
     def get(self, request, *args, **kwargs):
-        user_id = kwargs.get("user_id")
-        user = get_object_or_404(User, id=user_id)
-
-        context = {
-            "user": user,
-        }
-
-        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            html = render_to_string(
-                "accounts/admin/modals/user_delete_modal.html", context, request=request
-            )
-            return JsonResponse({"html": html})
-
-        return JsonResponse({"error": "Invalid request"}, status=400)
+        return JsonResponse({"html": "<h1>Delete Test</h1>"})
 
     def post(self, request, *args, **kwargs):
         user_id = kwargs.get("user_id")
