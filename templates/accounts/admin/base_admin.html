@@ -5,20 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Admin Panel - {{ site_settings.site_name|default:'Waka-Fine Bus' }}{% endblock %}</title>
     <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAA">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind CSS Compiled -->
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/tailwind-compiled.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: '{% if site_settings %}{{ site_settings.primary_color|default:"#1e40af" }}{% else %}#1e40af{% endif %}',
-                        secondary: '{% if site_settings %}{{ site_settings.accent_color|default:"#fbbf24" }}{% else %}#fbbf24{% endif %}',
-                    }
-                }
-            }
+    <!-- Custom CSS Variables for Dynamic Colors -->
+    <style>
+        :root {
+            --primary-color: {% if site_settings %}{{ site_settings.primary_color|default:"#1e40af" }}{% else %}#1e40af{% endif %};
+            --accent-color: {% if site_settings %}{{ site_settings.accent_color|default:"#fbbf24" }}{% else %}#fbbf24{% endif %};
         }
-    </script>
+    </style>
     <style>
         .sidebar-transition {
             transition: all 0.3s ease-in-out;
