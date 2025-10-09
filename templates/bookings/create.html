@@ -574,7 +574,7 @@ function bookingForm() {
             
             try {
                 console.log('Loading buses for route:', routeSelect.value);
-                const response = await fetch(`{% url 'bookings:route_buses' %}?route_id=${routeSelect.value}`);
+                const response = await fetch(`{% url 'bookings:ajax_get_route_buses' %}?route_id=${routeSelect.value}`);
                 const data = await response.json();
                 
                 if (data.buses && Array.isArray(data.buses)) {
@@ -675,7 +675,7 @@ function bookingForm() {
             }
             
             try {
-                const response = await fetch(`{% url 'bookings:bus_seats' %}?bus_id=${this.returnBusId}&travel_date=${returnDate}`);
+                const response = await fetch(`{% url 'bookings:ajax_get_seat_availability' %}?bus_id=${this.returnBusId}&travel_date=${returnDate}`);
                 const data = await response.json();
                 
                 if (data.seats && Array.isArray(data.seats)) {
@@ -821,7 +821,7 @@ function bookingForm() {
                     seatMap.innerHTML = '<div class="col-span-4 text-center text-gray-500 py-8">Loading seat availability...</div>';
                 }
                 
-                const response = await fetch(`{% url 'bookings:seat_availability' %}?bus_id=${this.busId}&travel_date=${travelDate.value}`);
+                const response = await fetch(`{% url 'bookings:ajax_get_seat_availability' %}?bus_id=${this.busId}&travel_date=${travelDate.value}`);
                 if (!response.ok) {
                     throw new Error(`Server returned ${response.status}: ${response.statusText}`);
                 }

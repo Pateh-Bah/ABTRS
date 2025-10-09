@@ -25,6 +25,11 @@ urlpatterns = [
         views.get_route_buses_ajax,
         name="ajax_get_route_buses",
     ),
+    path(
+        "bus-seats/",
+        views.get_seat_availability,
+        name="bus_seats",
+    ),
     path("debug/", views.BookingDebugView.as_view(), name="debug"),
     path('track/<str:pnr_code>/', views.track_booking_by_pnr, name='track_booking_by_pnr'),
 
