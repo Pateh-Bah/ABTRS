@@ -558,7 +558,20 @@ class UserDeleteModalView(AdminRequiredMixin, TemplateView):
     """AJAX view for user deletion confirmation modal"""
 
     def get(self, request, *args, **kwargs):
-        return JsonResponse({"html": "<h1>Delete Test</h1>"})
+        user_id = kwargs.get("user_id")
+        user = get_object_or_404(User, id=user_id)
+        
+        context = {
+            "user": user,
+        }
+
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            html = render_to_string(
+                "accounts/admin/modals/user_delete_modal.html", context, request=request
+            )
+            return JsonResponse({"html": html})
+
+        return JsonResponse({"error": "Invalid request"}, status=400)
 
     def post(self, request, *args, **kwargs):
         user_id = kwargs.get("user_id")
@@ -575,17 +588,28 @@ class UserDeleteModalView(AdminRequiredMixin, TemplateView):
                     }
                 )
 
-        user.delete()
-        messages.success(request, f'User "{username}" has been deleted successfully.')
+        # Check if user has any related data that would prevent deletion
+        try:
+            user.delete()
+            messages.success(request, f'User "{username}" has been deleted successfully.')
 
-        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-            return JsonResponse(
-                {
-                    "success": True,
-                    "message": f'User "{username}" has been deleted successfully.',
-                    "redirect_url": reverse_lazy("accounts:admin_manage_users"),
-                }
-            )
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "message": f'User "{username}" has been deleted successfully.',
+                        "redirect_url": reverse_lazy("accounts:admin_manage_users"),
+                    }
+                )
+        except Exception as e:
+            error_message = f"Could not delete user: {str(e)}"
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse(
+                    {
+                        "success": False,
+                        "error": error_message,
+                    }
+                )
 
         return JsonResponse({"error": "Invalid request"}, status=400)
 
