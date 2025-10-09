@@ -5,6 +5,7 @@ app_name = "bookings"
 
 urlpatterns = [
     path("", views.BookingListView.as_view(), name="list"),
+    path("<int:pk>/", views.BookingDetailView.as_view(), name="detail"),
     path("create/", views.BookingCreateView.as_view(), name="create"),
     path("search/", views.BookingSearchView.as_view(), name="search"),
     path("payment/<int:pk>/", views.PaymentView.as_view(), name="payment"),
